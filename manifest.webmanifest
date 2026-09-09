@@ -1,0 +1,17 @@
+{
+  "name": "Такси Империя",
+  "short_name": "Такси",
+  "description": "Idle игра — управлявай таксиметрова империя в жив град.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#17203A",
+  "theme_color": "#17203A",
+  "lang": "bg",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

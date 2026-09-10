@@ -72,6 +72,16 @@
   #qBar{height:6px;border-radius:4px;background:#E6E3D8;margin:7px 0 4px;overflow:hidden}
   #qBar i{display:block;height:100%;background:var(--meter);width:0%;transition:width .25s}
   #qMeta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:700}
+  /* ---------- диспечерката ---------- */
+  #adv{position:absolute;right:10px;top:158px;width:188px;background:var(--paper);
+    border-radius:11px;padding:8px 10px 9px 13px;box-shadow:0 6px 16px rgba(12,18,40,.2);overflow:hidden}
+  #adv:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--sky)}
+  #adv .ahead{display:flex;align-items:center;gap:6px;margin-bottom:5px;padding-right:16px}
+  #adv .ahead b{font-size:10.5px;font-weight:800;color:var(--muted)}
+  #adv svg{display:block;flex:0 0 auto;border-radius:50%}
+  #advTxt{font-size:12px;line-height:1.36;font-weight:800;color:var(--ink)}
+  #advOff{position:absolute;top:3px;right:4px;border:0;background:none;font:inherit;
+    font-size:15px;font-weight:800;color:#B6B2A4;padding:3px 6px;line-height:1}
   #rush{position:absolute;top:118px;right:10px;background:var(--fare);color:#fff;
     border-radius:10px;padding:6px 11px;font-size:12.5px;font-weight:800;
     box-shadow:0 6px 14px rgba(190,60,40,.34);pointer-events:none}
@@ -222,16 +232,33 @@
   <div id="cityTag">Метрополи<small id="clock"></small></div>
   <div id="quest"><div id="qTxt"></div><div id="qBar"><i></i></div><div id="qMeta"><span id="qRew"></span><span id="qTime"></span></div></div>
   <div id="rush" class="hidden">Час пик ×2</div>
+  <div id="adv" class="hidden">
+    <button id="advOff" title="Спри съветника">×</button>
+    <div class="ahead"><svg width="24" height="24" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="16" fill="#EAF4FB"/>
+      <path d="M16 31c-6 0-10-3-10-6s4-6 10-6 10 3 10 6-4 6-10 6z" fill="#4FB3F6"/>
+      <circle cx="16" cy="13.5" r="7.6" fill="#F5CBA0"/>
+      <path d="M8.4 13.5a7.6 7.6 0 0 1 15.2 0c.6-2 .4-5-1.4-7S18 4 16 4 10.6 4.8 9.4 6.9 7.8 11.6 8.4 13.5z" fill="#6B4423"/>
+      <path d="M7.4 12.6c-.9.4-1.3 2-.9 3.6.4 1.6 1.4 2.6 2.2 2.4z" fill="#6B4423"/>
+      <path d="M24.6 12.6c.9.4 1.3 2 .9 3.6-.4 1.6-1.4 2.6-2.2 2.4z" fill="#6B4423"/>
+      <circle cx="13.2" cy="14" r="1.3" fill="#3A3F5C"/><circle cx="18.8" cy="14" r="1.3" fill="#3A3F5C"/>
+      <circle cx="10.7" cy="16.5" r="1.7" fill="#FFB0AC" opacity=".55"/>
+      <circle cx="21.3" cy="16.5" r="1.7" fill="#FFB0AC" opacity=".55"/>
+      <path d="M14.2 17.8q1.8 1.3 3.6 0" stroke="#B4795A" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+    </svg><b>Ния · диспечер</b></div>
+    <div id="advTxt"></div>
+  </div>
   <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="menu" title="Меню">☰<i class="dot hidden" id="mdot"></i></button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v14 · 3 града</div>
+  <div id="ver">v15 · 3 града</div>
 </div>
 <div id="fleets"></div>
 
 <div id="panel" class="hidden"><div id="pbox">
   <div id="ptabs">
-    <button data-tab="stat" class="on">Статистика</button>
-    <button data-tab="ach">Постижения</button>
+    <button data-tab="city" class="on">Град</button>
+    <button data-tab="stat">Статус</button>
+    <button data-tab="ach">Награди</button>
     <button data-tab="drv">Шофьори</button>
     <button data-tab="shop">Магазин</button>
     <button data-tab="set">Настройки</button>
@@ -252,6 +279,7 @@
 function $(id){return document.getElementById(id);}
 var EL={money:$("money"),gems:$("gems"),clock:$("clock"),net:$("net"),turbo:$("turbo"),
   rush:$("rush"),quest:$("quest"),qTxt:$("qTxt"),qBar:$("qBar").firstChild,mdot:$("mdot"),
+  adv:$("adv"),advTxt:$("advTxt"),
   qRew:$("qRew"),qTime:$("qTime"),cityTag:$("cityTag").firstChild};
 function setTxt(el,v){if(el&&el._v!==v){el._v=v;el.textContent=v;}}
 function setCls(el,v){if(el&&el._c!==v){el._c=v;el.className=v;}}
@@ -553,7 +581,8 @@ var fleets=[],cars=[],npcs=[],clients=[],parts=[],bubbles=[],crates=[],accidents
 // 1200 стига точно за четвъртата кола: първият праг ×2 е достъпен веднага,
 // вместо играчът да чака пред подсказка, която не може да изпълни
 var S={money:1200,best:0,gems:0},turboUntil=0,rushUntil=0;
-var SET={sound:1,vibro:1};
+var SET={sound:1,vibro:1,adv:1};
+var advKey="",advT=0;
 var ST={rides:0,km:0,vip:0,night:0,acc:0,wash:0,quests:0,gemsF:0,play:0};
 var PR={pp:0,tot:0,runs:0};        // престижни точки, изкарано за всички рестарти, брой рестарти
 var DY={last:0,streak:0};
@@ -899,12 +928,65 @@ function tap(sx,sy){
     if(Math.hypot(cars[s3].x-w.x,cars[s3].y-w.y)<40){
       say(cars[s3].x,cars[s3].y,drvName(cars[s3])+" · "+trait(cars[s3]).n);return;}
   for(var z=0;z<ZONES.length;z++){var Z=ZONES[z];if(Z.open)continue;
-    if(w.y>=Z.y&&w.y<Z.y+Z.h){
-      if(S.money>=Z.cost){S.money-=Z.cost;Z.open=true;save();
-        popup("Нов район",Z.name+" е отключен — повече клиенти и по-дълги курсове.");}
-      else shakeT=0.45;
-      return;}}
+    if(w.y>=Z.y&&w.y<Z.y+Z.h){ if(!buyZone(z))shakeT=0.45; return;}}
 }
+/* ==================== диспечерката ==================== */
+/* Подредена по приоритет: първото изпълнено условие е и най-спешното.
+   Мълчи, когато няма какво да каже, вместо да пълни екрана. */
+function advice(){
+  var i,f;
+  for(i=0;i<cars.length;i++)if(cars[i].asleep)
+    return{k:"sleep",t:"Шофьор е заспал. Докосни колата му, за да го събудиш."};
+  if(S.best>2000&&totalCars()>3&&rate()-expenseRate()<0)
+    return{k:"red",t:"Разходите изядоха прихода. Прибери коли в гаража, докато се оправим."};
+  if(nextCityReady()&&CITIES[cityIdx+1]&&S.money>=CITIES[cityIdx+1].price)
+    return{k:"city",t:"Всички райони са твои. Време е за "+CITIES[cityIdx+1].name+"."};
+  for(i=0;i<ZONES.length;i++)if(!ZONES[i].open&&S.money>=ZONES[i].cost)
+    return{k:"zone"+i,t:"Имаш за "+ZONES[i].name+". Отключи го — повече клиенти и по-дълги курсове."};
+  if(presAvail()>0)
+    return{k:"pres",t:"Имаш "+presAvail()+" престижни точки. Продай империята и почни по-силен."};
+  for(i=0;i<fleets.length;i++){f=fleets[i];var nm=nextMile(f);
+    if(nm&&f.cars===nm-1&&S.money>=carCost(f))
+      return{k:"mile"+i,t:"Още една кола в "+f.name+" и тарифата ѝ се удвоява."};}
+  var ds=0,dn=0;
+  for(i=0;i<cars.length;i++){ds+=cars[i].dirt||0;dn++;}
+  if(dn&&ds/dn>0.55)
+    return{k:"dirt",t:"Колите са мръсни — губим до 30% от тарифата. Докосни мръсна кола."};
+  if(S.gems>=10)
+    return{k:"gems",t:"Имаш "+S.gems+" диаманта. В магазина има постоянен бонус."};
+  for(i=0;i<fleets.length;i++){f=fleets[i];
+    if(f.cars<MAXCARS&&S.money>=carCost(f))
+      return{k:"car"+i,t:"Има пари за нова кола в "+f.name+"."};}
+  for(i=0;i<fleets.length;i++){f=fleets[i];
+    if(S.money>=upCost(f)*3)
+      return{k:"lvl"+i,t:"Парите стоят без работа. Качи ниво на "+f.name+"."};}
+  if(quest&&!quest.finished&&quest.left<20&&quest.p<quest.goal)
+    return{k:"quest",t:"Мисията изтича след "+Math.ceil(quest.left)+" секунди."};
+  return null;
+}
+function advTick(dt){
+  advT-=dt;if(advT>0)return;
+  advT=2.5;
+  if(!SET.adv){EL.adv.classList.add("hidden");advKey="";return;}
+  var a=advice();
+  if(!a){EL.adv.classList.add("hidden");advKey="";return;}
+  EL.adv.classList.remove("hidden");
+  if(a.k!==advKey){advKey=a.k;setTxt(EL.advTxt,a.t);sfx("tap");}
+}
+document.getElementById("advOff").onclick=function(){
+  SET.adv=0;EL.adv.classList.add("hidden");advKey="";save();
+  popupSmall("Ния млъкна. Може да я върнеш от Настройки.");
+};
+
+function buyZone(i){
+  var Z=ZONES[i];
+  if(!Z||Z.open||S.money<Z.cost)return false;
+  S.money-=Z.cost;Z.open=true;
+  sfx("buy");vibro(12);save();updCards();
+  popup("Нов район",Z.name+" е отключен — повече клиенти и по-дълги курсове.");
+  return true;
+}
+
 /* ==================== логика ==================== */
 var spawnT=0,saveT=0,crateT=25,eventT=100,cardT=0,hist=[],allV=[];
 function update(dt){
@@ -997,6 +1079,7 @@ function update(dt){
   setCls(EL.net,net>=0?"":"bad");
   setCls(EL.turbo,(S.gems<1&&Date.now()>turboUntil)?"off":"");
   setTxt(EL.turbo,Date.now()<turboUntil?("⚡ "+Math.ceil((turboUntil-Date.now())/1000)+"с"):"⚡ Турбо · 1 💎");
+  advTick(dt);
   cardT-=dt;if(cardT<=0){cardT=0.2;updCards();   // картите не се менят 60 пъти в секунда
     var pav=presAvail();setHid(EL.mdot,pav<1);if(pav>0)setTxt(EL.mdot,pav+"");}
 }
@@ -1942,10 +2025,41 @@ function updCards(){
   }
 }
 /* ==================== панел ==================== */
-var PTAB="stat";
+var PTAB="city";
 function row(lb,vl,sub){
   return '<div class="prow"><div class="lb">'+lb+(sub?'<small>'+sub+'</small>':'')+
          '</div><div class="vl">'+vl+'</div></div>';
+}
+function cityHTML(){
+  var h='<div class="phead">'+CITY.name+' · район '+zonesOpen()+' от '+ZONES.length+'</div>';
+  for(var i=0;i<ZONES.length;i++){
+    var Z=ZONES[i],can=S.money>=Z.cost;
+    h+='<div class="prow"><div class="lb">'+Z.name+
+       '<small>'+(Z.open?"отключен":"заключен · "+money(Z.cost))+'</small></div>';
+    h+=Z.open?'<div class="vl" style="color:#1FA871">✓</div>'
+             :'<button class="pbtn'+(can?'':' cant')+'" data-zone="'+i+'" style="width:auto;min-width:92px">'+
+              money(Z.cost)+'</button>';
+    h+='</div>';
+  }
+  if(cityIdx>=CITIES.length-1)
+    return h+'<div class="phead">Това е последният град</div>'+
+      '<div class="prow"><div class="lb">Няма накъде повече<small>Продай империята от раздел Статус, за да започнеш отново по-силен</small></div></div>';
+  var nx=CITIES[cityIdx+1],ready=nextCityReady(),can=ready&&S.money>=nx.price;
+  h+='<div class="phead">Следващ град</div>';
+  if(!ready){
+    h+='<div class="prow"><div class="lb">?<small>Отключи всички райони, за да го видиш</small></div>'+
+       '<div class="vl">град '+(cityIdx+2)+'</div></div>';
+    return h;
+  }
+  h+='<div class="prow"><div class="lb">'+nx.name+'<small>град '+(cityIdx+2)+'</small></div>'+
+     '<div class="vl">×'+nx.mult+' тарифи</div></div>';
+  h+='<div class="prow"><div class="lb">Разходи<small>по-голям град, по-скъпа издръжка</small></div>'+
+     '<div class="vl">×'+nx.upk+'</div></div>';
+  h+='<div class="prow"><div class="lb">Карта<small>'+nx.zones.length+' района</small></div>'+
+     '<div class="vl">'+(Math.round(nx.w*nx.h/(CITIES[0].w*CITIES[0].h)*10)/10)+'× по-голяма</div></div>';
+  h+='<button class="pbtn'+(can?'':' cant')+'" data-act="move" style="margin-top:10px">'+
+     'Премести се · '+money(nx.price)+'</button>';
+  return h;
 }
 function statHTML(){
   var h='<div class="phead">Тази империя</div>';
@@ -2017,6 +2131,8 @@ function setHTML(){
       '<button class="tgl'+(SET.sound?' on':'')+'" data-tgl="sound"></button></div>'+
     '<div class="prow"><div class="lb">Вибрация<small>Само на телефон</small></div>'+
       '<button class="tgl'+(SET.vibro?' on':'')+'" data-tgl="vibro"></button></div>'+
+    '<div class="prow"><div class="lb">Съветник Ния<small>Подсказва какво си струва сега</small></div>'+
+      '<button class="tgl'+(SET.adv?' on':'')+'" data-tgl="adv"></button></div>'+
     '<div class="phead">Опасна зона</div>'+
     '<div class="prow"><div class="lb">Нова игра<small>Изтрива всичко, включително престижа</small></div></div>'+
     '<button class="pbtn danger" data-act="reset">Изтрий целия прогрес</button>';
@@ -2025,16 +2141,20 @@ function renderPanel(){
   var b=document.getElementById("pbody");
   [].forEach.call(document.querySelectorAll("#ptabs button"),function(x){
     x.className=x.getAttribute("data-tab")===PTAB?"on":"";});
-  b.innerHTML=PTAB==="stat"?statHTML():PTAB==="ach"?achHTML():
+  b.innerHTML=PTAB==="city"?cityHTML():PTAB==="stat"?statHTML():PTAB==="ach"?achHTML():
               PTAB==="drv"?drvHTML():PTAB==="shop"?shopHTML():setHTML();
   [].forEach.call(b.querySelectorAll("[data-buy]"),function(x){
     x.onclick=function(){shopBuy(x.getAttribute("data-buy"));};});
   [].forEach.call(b.querySelectorAll("[data-tgl]"),function(x){
     x.onclick=function(){var k=x.getAttribute("data-tgl");SET[k]=SET[k]?0:1;
       if(k==="sound"&&SET.sound)sfx("tap");save();renderPanel();};});
+  [].forEach.call(b.querySelectorAll("[data-zone]"),function(x){
+    x.onclick=function(){if(buyZone(+x.getAttribute("data-zone")))renderPanel();};});
   [].forEach.call(b.querySelectorAll("[data-act]"),function(x){
     x.onclick=function(){var a=x.getAttribute("data-act");
-      if(a==="pres")askPrestige(); else if(a==="reset")askNewGame();};});
+      if(a==="pres")askPrestige();
+      else if(a==="reset")askNewGame();
+      else if(a==="move"){moveCity();renderPanel();}};});
 }
 function openPanel(){document.getElementById("panel").classList.remove("hidden");renderPanel();sfx("tap");}
 function closePanel(){document.getElementById("panel").classList.add("hidden");}
@@ -2229,7 +2349,8 @@ genCity();buildZones();resize(true);spawnNpcs(CITY.npc);
 function boot(d){
   if(d){
     S.money=d.m||0;S.best=d.b||0;S.gems=d.g||0;clock=d.ck||clock;
-    if(d.se){SET.sound=d.se.sound?1:0;SET.vibro=d.se.vibro?1:0;}
+    if(d.se){SET.sound=d.se.sound?1:0;SET.vibro=d.se.vibro?1:0;
+      SET.adv=(d.se.adv===undefined)?1:(d.se.adv?1:0);}
     if(d.st)for(var sk in ST)if(typeof d.st[sk]==="number")ST[sk]=d.st[sk];
     if(d.pr){PR.pp=d.pr.pp||0;PR.tot=d.pr.tot||0;PR.runs=d.pr.runs||0;}
     if(d.dy){DY.last=d.dy.last||0;DY.streak=d.dy.streak||0;}

@@ -59,8 +59,14 @@
 
   /* ---------- диспечерска бележка (мисия) ---------- */
   #quest{position:absolute;left:10px;top:118px;width:178px;background:var(--paper);
-    border-radius:11px;padding:9px 10px 9px 16px;pointer-events:none;
-    box-shadow:0 6px 16px rgba(12,18,40,.2);overflow:hidden}
+    border-radius:11px;padding:9px 10px 9px 16px;
+    box-shadow:0 6px 16px rgba(12,18,40,.2);overflow:hidden;
+    transition:width .18s ease,padding .18s ease}
+  #qMini{display:none;font-size:12.5px;font-weight:800;white-space:nowrap;
+    font-variant-numeric:tabular-nums}
+  #quest.min{width:auto;padding:8px 12px 8px 15px}
+  #quest.min #qFull{display:none}
+  #quest.min #qMini{display:block}
   #quest:before{content:"";position:absolute;left:0;top:0;bottom:0;width:7px;
     background-image:
       linear-gradient(45deg,var(--taxi) 25%,transparent 25%,transparent 75%,var(--taxi) 75%),
@@ -74,7 +80,13 @@
   #qMeta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:700}
   /* ---------- диспечерката ---------- */
   #adv{position:absolute;right:10px;top:158px;width:188px;background:var(--paper);
-    border-radius:11px;padding:8px 10px 9px 13px;box-shadow:0 6px 16px rgba(12,18,40,.2);overflow:hidden}
+    border-radius:11px;padding:8px 10px 9px 13px;box-shadow:0 6px 16px rgba(12,18,40,.2);
+    overflow:hidden;transition:width .18s ease,padding .18s ease,border-radius .18s ease}
+  #adv.min{width:auto;padding:7px;border-radius:50%}
+  #adv.min:before{display:none}
+  #adv.min .ahead{margin:0;padding:0}
+  #adv.min .ahead b,#adv.min #advTxt,#adv.min #advOff{display:none}
+  #adv.min svg{width:34px;height:34px}
   #adv:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--sky)}
   #adv .ahead{display:flex;align-items:center;gap:6px;margin-bottom:5px;padding-right:16px}
   #adv .ahead b{font-size:10.5px;font-weight:800;color:var(--muted)}
@@ -213,7 +225,7 @@
     <div id="net"></div>
   </div>
   <div id="cityTag">Метрополи<small id="clock"></small></div>
-  <div id="quest"><div id="qTxt"></div><div id="qBar"><i></i></div><div id="qMeta"><span id="qRew"></span><span id="qTime"></span></div></div>
+  <div id="quest"><div id="qMini"></div><div id="qFull"><div id="qTxt"></div><div id="qBar"><i></i></div><div id="qMeta"><span id="qRew"></span><span id="qTime"></span></div></div></div>
   <div id="rush" class="hidden">Час пик ×2</div>
   <div id="adv" class="hidden">
     <button id="advOff" title="Спри съветника">×</button>
@@ -233,7 +245,7 @@
   </div>
   <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="menu" title="Меню">☰<i class="dot hidden" id="mdot"></i></button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v16 · 3 града</div>
+  <div id="ver">v17 · 3 града</div>
 </div>
 <div id="fleets"></div>
 
@@ -262,6 +274,7 @@
 function $(id){return document.getElementById(id);}
 var EL={money:$("money"),gems:$("gems"),clock:$("clock"),net:$("net"),turbo:$("turbo"),
   rush:$("rush"),quest:$("quest"),qTxt:$("qTxt"),qBar:$("qBar").firstChild,mdot:$("mdot"),
+  qMini:$("qMini"),
   adv:$("adv"),advTxt:$("advTxt"),
   qRew:$("qRew"),qTime:$("qTime"),cityTag:$("cityTag").firstChild};
 function setTxt(el,v){if(el&&el._v!==v){el._v=v;el.textContent=v;}}
@@ -564,8 +577,8 @@ var fleets=[],cars=[],npcs=[],clients=[],parts=[],bubbles=[],crates=[],accidents
 // 1200 стига точно за четвъртата кола: първият праг ×2 е достъпен веднага,
 // вместо играчът да чака пред подсказка, която не може да изпълни
 var S={money:1200,best:0,gems:0},turboUntil=0,rushUntil=0;
-var SET={sound:1,vibro:1,adv:1};
-var advKey="",advT=0;
+var SET={sound:1,vibro:1,adv:1,qmin:0};
+var advKey="",advT=0,advHold=0;
 var ST={rides:0,km:0,vip:0,night:0,acc:0,wash:0,quests:0,gemsF:0,play:0};
 var PR={pp:0,tot:0,runs:0};        // престижни точки, изкарано за всички рестарти, брой рестарти
 var DY={last:0,streak:0};
@@ -720,12 +733,19 @@ function questProgress(kind,val){
 function renderQuest(){
   if(!quest){EL.quest.classList.add("hidden");return;}
   EL.quest.classList.remove("hidden");
+  EL.quest.classList.toggle("min",!!SET.qmin);
+  var pr=Math.min(1,quest.p/quest.goal);
+  // свито: само процент и оставащо време — процентът върши работа и за
+  // мисиите за пари, където суровите числа са нечетими
+  setTxt(EL.qMini,quest.finished?"Мисия ✓":Math.round(pr*100)+"% · "+Math.max(0,Math.ceil(quest.left))+"с");
+  if(SET.qmin)return;
   setTxt(EL.qTxt,quest.finished?"Готово! "+quest.txt:quest.txt);
-  var w=(Math.min(1,quest.p/quest.goal)*100)+"%";
+  var w=(pr*100)+"%";
   if(EL.qBar._w!==w){EL.qBar._w=w;EL.qBar.style.width=w;}
   setTxt(EL.qRew,"+"+money(quest.rew)+(quest.gem?" +💎":""));
   setTxt(EL.qTime,quest.finished?"✓":Math.max(0,Math.ceil(quest.left))+"с");
 }
+EL.quest.onclick=function(){SET.qmin=SET.qmin?0:1;renderQuest();sfx("tap");save();};
 function popupSmall(txt){ bubbles.push({x:cam.x,y:cam.y-VH/cam.s*0.28,txt:txt,t:3,big:true}); }
 /* ==================== магазин за диаманти ==================== */
 var SHOP=[
@@ -948,15 +968,26 @@ function advice(){
   return null;
 }
 function advTick(dt){
+  // свиването се проверява всеки кадър, съветът — на 2.5 секунди
+  EL.adv.classList.toggle("min",Date.now()>advHold);
   advT-=dt;if(advT>0)return;
   advT=2.5;
   if(!SET.adv){EL.adv.classList.add("hidden");advKey="";return;}
   var a=advice();
   if(!a){EL.adv.classList.add("hidden");advKey="";return;}
   EL.adv.classList.remove("hidden");
-  if(a.k!==advKey){advKey=a.k;setTxt(EL.advTxt,a.t);sfx("tap");}
+  if(a.k!==advKey){
+    advKey=a.k;setTxt(EL.advTxt,a.t);sfx("tap");
+    advHold=Date.now()+8000;      // казва си своето и се маха от пътя
+  }
 }
-document.getElementById("advOff").onclick=function(){
+EL.adv.onclick=function(){
+  advHold=(Date.now()>advHold)?Date.now()+15000:0;   // отвори за четене / свий веднага
+  EL.adv.classList.toggle("min",Date.now()>advHold);
+  sfx("tap");
+};
+document.getElementById("advOff").onclick=function(e){
+  e.stopPropagation();                                // × изключва, не свива
   SET.adv=0;EL.adv.classList.add("hidden");advKey="";save();
   popupSmall("Ния млъкна. Може да я върнеш от Настройки.");
 };
@@ -2284,7 +2315,8 @@ function boot(d){
   if(d){
     S.money=d.m||0;S.best=d.b||0;S.gems=d.g||0;clock=d.ck||clock;
     if(d.se){SET.sound=d.se.sound?1:0;SET.vibro=d.se.vibro?1:0;
-      SET.adv=(d.se.adv===undefined)?1:(d.se.adv?1:0);}
+      SET.adv=(d.se.adv===undefined)?1:(d.se.adv?1:0);
+      SET.qmin=d.se.qmin?1:0;}
     if(d.st)for(var sk in ST)if(typeof d.st[sk]==="number")ST[sk]=d.st[sk];
     if(d.pr){PR.pp=d.pr.pp||0;PR.tot=d.pr.tot||0;PR.runs=d.pr.runs||0;}
     if(d.dy){DY.last=d.dy.last||0;DY.streak=d.dy.streak||0;}

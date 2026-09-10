@@ -245,7 +245,7 @@
   </div>
   <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="menu" title="Меню">☰<i class="dot hidden" id="mdot"></i></button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v20 · 3 града</div>
+  <div id="ver">v21 · 3 града</div>
 </div>
 <div id="fleets"></div>
 
@@ -706,14 +706,16 @@ function spawnNpcs(k){
 /* ==================== клиенти ==================== */
 var SKIN=["#F5CBA0","#E0AC7E","#C68642","#8D5524","#FFE0BD"];
 var HAIR=["#2E2A28","#6B4423","#C9A227","#B03A2E","#4A4E69","#DDDDDD"];
-var SHIRT=["#4FB3F6","#FF6B6B","#57C97C","#FFC93C","#C77DFF","#FF9F6E"];
+var SHIRT=["#4A8FD6","#D6564B","#3FA46B","#E0A62E","#8B5FBF","#D4785A","#3C4A6B","#C9556F"];
+var PANTS=["#2E3852","#3B4460","#51586E","#4A3B32","#2A3F52","#5C4A3A"];
 var SPOTS=["coffee","pizza","bowling","gym","cinema","bar"];
 function spawnClient(){
   var cap=6+ZONES.filter(function(z){return z.open;}).length*3+fleets.length*2+(evOn()?6:0);
   if(clients.length>=cap)return;
   var a=randomOpenNode(),b=randomOpenNode(),t=0;
   while((b===a||Math.hypot(nodes[a].x-nodes[b].x,nodes[a].y-nodes[b].y)<280)&&t++<40)b=randomOpenNode();
-  clients.push({from:a,to:b,skin:pick(SKIN),hair:pick(HAIR),shirt:pick(SHIRT),spot:pick(SPOTS),
+  clients.push({from:a,to:b,skin:pick(SKIN),hair:pick(HAIR),shirt:pick(SHIRT),pants:pick(PANTS),
+    spot:pick(SPOTS),hs:ri(0,2),bag:Math.random()<0.34,skirt:Math.random()<0.38,
     vip:Math.random()<0.12,taken:false,wait:0,bob:Math.random()*6});
 }
 /* ==================== ден/нощ ==================== */
@@ -1776,90 +1778,135 @@ function drawBuilding(b){
 }
 function mixHex2(rgbArr,t){return [lerp(rgbArr[0],42,t),lerp(rgbArr[1],47,t),lerp(rgbArr[2],82,t)];}
 function L(p,q,f){return [p[0]+(q[0]-p[0])*f,p[1]+(q[1]-p[1])*f];}
+/* Пропорции по реален силует: капак, купе, багажник по надлъжната ос.
+   rf/rb са границите на покрива, rw — ширината му спрямо каросерията. */
 var BODY={
-  hatch:{len:31,wid:16,r:7,  cab:[-0.04,0.34],glass:.9},
-  sedan:{len:36,wid:16.5,r:6.5,cab:[-0.06,0.34],glass:.9},
-  taxi: {len:37,wid:17,r:6,  cab:[-0.06,0.34],glass:.88,sign:1,checker:1},
-  van:  {len:41,wid:19.5,r:4.5,cab:[-0.18,0.48],glass:.84,rack:1},
-  limo: {len:53,wid:17,r:6.5,cab:[-0.28,0.62],glass:.6,chrome:1}
+  hatch:{len:33,wid:16.5,r:4.5,rf:0.10,rb:-0.30,rw:0.76,glass:.92},
+  sedan:{len:38,wid:17,  r:4,  rf:0.12,rb:-0.24,rw:0.74,glass:.92},
+  taxi: {len:39,wid:17.5,r:4,  rf:0.12,rb:-0.24,rw:0.74,glass:.90,sign:1,checker:1},
+  van:  {len:43,wid:20,  r:3.5,rf:0.26,rb:-0.42,rw:0.82,glass:.86,rack:1},
+  limo: {len:56,wid:17.5,r:4,  rf:0.20,rb:-0.34,rw:0.72,glass:.62,chrome:1}
 };
-/* Такситата на играча са визуалният фокус: рисуват се по-едри от трафика,
-   с плътен тъмен контур и лека анимация, за да се четат от всеки мащаб. */
+/* Такситата на играча са визуалният фокус: по-едри от трафика, с контур и
+   лека анимация. Детайлът се включва при приближение, за да не струва кадри. */
 function drawCarShape(x,y,a,colHex,body,busy,brake,dirt,steer,mine,ph){
   dirt=dirt||0;steer=steer||0;ph=ph||0;
   var B=BODY[body]||BODY.sedan;
-  var k=mine?1.38:1.06;                       // колите на играча са по-едри
+  var k=mine?1.38:1.06;
   var len=B.len*k,wid=B.wid*k,r=B.r*k;
   var t=performance.now()/1000;
-  var bob=mine?Math.sin(t*5.5+ph)*0.5:0;      // лек живот, за да не са статични
-  var sq=brake>0?0.97:1;                      // клякане при спиране
+  var bob=mine?Math.sin(t*5.5+ph)*0.45:0;
+  var sq=brake>0?0.975:1;
   len*=sq;wid*=(2-sq);
   var c=hex2rgb(colHex),cc=night>0.2?mixHex2(c,night*0.34):c;
-  var outline=col(OUT,"#070B18");
+  var o=col(OUT,"#070B18"),detail=cam.s>minS*2.0;
+  var hl=len/2,hw=wid/2;
+  var rf=len*B.rf,rb=len*B.rb,rw=wid*B.rw/2;
 
+  // силуетът се стеснява към носа — иначе колата чете като тухла
+  function carPath(L,W,R){
+    ctx.beginPath();
+    ctx.moveTo(-L+R,-W);
+    ctx.lineTo(L*0.28,-W);
+    ctx.quadraticCurveTo(L,-W,L,-W*0.42);
+    ctx.lineTo(L,W*0.42);
+    ctx.quadraticCurveTo(L,W,L*0.28,W);
+    ctx.lineTo(-L+R,W);
+    ctx.quadraticCurveTo(-L,W,-L,W-R);
+    ctx.lineTo(-L,-W+R);
+    ctx.quadraticCurveTo(-L,-W,-L+R,-W);
+    ctx.closePath();
+  }
   ctx.save();ctx.translate(x,y+bob);ctx.rotate(a);
-  // сянка
-  ctx.fillStyle="rgba(24,32,60,"+(0.22+0.12*night)+")";
-  rr(-len/2+2.5,-wid/2+4.5,len,wid,r);ctx.fill();
+  ctx.fillStyle="rgba(22,30,58,"+(0.24+0.12*night)+")";
+  ctx.save();ctx.translate(2.5,4.5);carPath(hl,hw,r);ctx.fill();ctx.restore();
   ctx.translate(-1.5,-2.5);
-  ctx.rotate(steer*0.12);                     // накланя се в завой
+  ctx.rotate(steer*0.10);
 
-  // колела извън каросерията, за да се четат
-  var wr=(body==="van"?4.6:4)*k, wl=(body==="van"?9:8)*k;
-  ctx.fillStyle=col("#1B2138","#0A0E1E");
+  // колела с калници
+  var wr=(body==="van"?5.2:4.7)*k,wl=(body==="van"?9.8:8.8)*k;
+  ctx.fillStyle=col("#171C2E","#080C18");
   function wheel(px,py,rot){ctx.save();ctx.translate(px,py);ctx.rotate(rot||0);
-    rr(-wl/2,-wr/2,wl,wr,2);ctx.fill();ctx.restore();}
-  wheel(-len*0.29,-wid/2-1.2);wheel(-len*0.29,wid/2+1.2);
-  wheel(len*0.29,-wid/2-1.2,steer);wheel(len*0.29,wid/2+1.2,steer);
+    rr(-wl/2,-wr/2,wl,wr,1.6);ctx.fill();ctx.restore();}
+  wheel(-len*0.30,-hw-1.6);wheel(-len*0.30,hw+1.6);
+  wheel(len*0.28,-hw-1.6,steer);wheel(len*0.28,hw+1.6,steer);
 
-  // контур + каросерия
-  ctx.fillStyle=outline;rr(-len/2-2.2,-wid/2-2.2,len+4.4,wid+4.4,r+2);ctx.fill();
-  var g=ctx.createLinearGradient(0,-wid/2,0,wid/2);
-  g.addColorStop(0,rgbs(cc,1.12));g.addColorStop(0.55,rgbs(cc,1));g.addColorStop(1,rgbs(cc,0.8));
-  ctx.fillStyle=g;rr(-len/2,-wid/2,len,wid,r);ctx.fill();
+  // каросерия: контурът е обводка на същия силует, не втори по-голям
+  var g=ctx.createLinearGradient(0,-hw,0,hw);
+  g.addColorStop(0,rgbs(cc,1.16));g.addColorStop(0.42,rgbs(cc,1.02));
+  g.addColorStop(0.62,rgbs(cc,0.9));g.addColorStop(1,rgbs(cc,0.7));
+  carPath(hl,hw,r);
+  ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle=o;ctx.lineWidth=3.2;ctx.lineJoin="round";ctx.stroke();
 
-  // купе и стъкла
-  ctx.fillStyle=outline;
-  rr(len*B.cab[0]-1.2,-wid/2+1.6,len*B.cab[1]+2.4,wid-3.2,4);ctx.fill();
-  ctx.fillStyle="rgba(150,205,240,"+B.glass+")";
-  rr(len*(B.cab[0]+B.cab[1])-len*0.10,-wid/2+3.2,len*0.115,wid-6.4,2.5);ctx.fill();
-  ctx.fillStyle="rgba(120,180,220,"+(B.glass*0.8)+")";
-  rr(len*B.cab[0]+1.5,-wid/2+3.2,len*0.1,wid-6.4,2.5);ctx.fill();
-  if(B.rack){ctx.fillStyle=rgbs(cc,0.62);
-    ctx.fillRect(-len*0.2,-wid/2+3,len*0.36,2);ctx.fillRect(-len*0.2,wid/2-5,len*0.36,2);}
-  if(B.chrome){ctx.fillStyle="rgba(255,255,255,"+(0.5*(1-night*0.6))+")";
-    ctx.fillRect(-len*0.42,-wid/2+1.4,len*0.84,1.4);ctx.fillRect(-len*0.42,wid/2-2.8,len*0.84,1.4);}
-  if(B.checker){var sq2=3.6*k;
-    for(var q=0;q<Math.floor(len*0.6/sq2);q++){
-      ctx.fillStyle=(q%2)?"#1B2138":"#FFFFFF";ctx.fillRect(-len*0.30+q*sq2,-wid/2+1.6,sq2,2.6);
-      ctx.fillStyle=(q%2)?"#FFFFFF":"#1B2138";ctx.fillRect(-len*0.30+q*sq2,wid/2-4.2,sq2,2.6);}}
+  if(detail){
+    // калници над колелата
+    ctx.fillStyle=rgbs(cc,0.78);
+    rr(len*0.30-wl/2,-hw,wl,2.2,1);ctx.fill();rr(len*0.30-wl/2,hw-2.2,wl,2.2,1);ctx.fill();
+    rr(-len*0.30-wl/2,-hw,wl,2.2,1);ctx.fill();rr(-len*0.30-wl/2,hw-2.2,wl,2.2,1);ctx.fill();
+    // линии на вратите
+    ctx.strokeStyle="rgba(20,26,46,.30)";ctx.lineWidth=0.9;
+    ctx.beginPath();ctx.moveTo(rf,-hw+1.5);ctx.lineTo(rf,hw-1.5);
+    ctx.moveTo(rb,-hw+1.5);ctx.lineTo(rb,hw-1.5);ctx.stroke();
+  }
 
-  // блясък по покрива
-  ctx.fillStyle="rgba(255,255,255,"+(0.3*(1-night*0.8))+")";
-  rr(-len*0.38,-wid/2+2,len*0.74,2.6,1.3);ctx.fill();
+  // покрив
+  ctx.fillStyle=o;rr(rb-1,-rw-1,(rf-rb)+2,rw*2+2,3);ctx.fill();
+  ctx.fillStyle=rgbs(cc,night>0.3?0.88:1.06);rr(rb,-rw,rf-rb,rw*2,2.5);ctx.fill();
 
-  // фарове и стопове
-  ctx.fillStyle=night>0.15?"rgba(255,244,196,"+(0.6+0.4*night)+")":"#FFF6DC";
-  ctx.beginPath();ctx.arc(len/2-3,-wid/2+4,2.9*k,0,7);ctx.fill();
-  ctx.beginPath();ctx.arc(len/2-3,wid/2-4,2.9*k,0,7);ctx.fill();
-  ctx.fillStyle=brake>0?"#FF4436":"rgba(200,60,50,"+(0.5+0.4*night)+")";
-  ctx.beginPath();ctx.arc(-len/2+3,-wid/2+4,2.4*k,0,7);ctx.fill();
-  ctx.beginPath();ctx.arc(-len/2+3,wid/2-4,2.4*k,0,7);ctx.fill();
+  // предно и задно стъкло като трапеци
+  var gl="rgba(146,196,232,"+B.glass+")";
+  ctx.fillStyle=gl;
+  ctx.beginPath();ctx.moveTo(rf,-rw);ctx.lineTo(rf+len*0.11,-hw+2.6);
+  ctx.lineTo(rf+len*0.11,hw-2.6);ctx.lineTo(rf,rw);ctx.closePath();ctx.fill();
+  ctx.fillStyle="rgba(122,172,210,"+(B.glass*0.86)+")";
+  ctx.beginPath();ctx.moveTo(rb,-rw);ctx.lineTo(rb-len*0.09,-hw+2.8);
+  ctx.lineTo(rb-len*0.09,hw-2.8);ctx.lineTo(rb,rw);ctx.closePath();ctx.fill();
+  if(detail){                                    // странични стъкла
+    ctx.fillStyle="rgba(132,182,218,"+(B.glass*0.7)+")";
+    rr(rb+1.5,-rw-1.3,(rf-rb)-3,1.7,0.8);ctx.fill();
+    rr(rb+1.5,rw-0.4,(rf-rb)-3,1.7,0.8);ctx.fill();
+    // огледала
+    ctx.fillStyle=rgbs(cc,0.72);
+    rr(rf+len*0.05,-hw-2.2,3.2,1.9,0.8);ctx.fill();
+    rr(rf+len*0.05,hw+0.3,3.2,1.9,0.8);ctx.fill();
+  }
+  if(B.rack){ctx.fillStyle=rgbs(cc,0.6);
+    ctx.fillRect(rb+2,-rw+0.5,(rf-rb)-4,1.6);ctx.fillRect(rb+2,rw-2.1,(rf-rb)-4,1.6);}
+  if(B.chrome){ctx.fillStyle="rgba(255,255,255,"+(0.45*(1-night*0.6))+")";
+    ctx.fillRect(-hl+3,-hw+1.1,len-6,1.1);ctx.fillRect(-hl+3,hw-2.2,len-6,1.1);}
+  if(B.checker){var cs=3.6*k;
+    for(var q=0;q<Math.floor(len*0.5/cs);q++){
+      ctx.fillStyle=(q%2)?"#171C2E":"#FFFFFF";ctx.fillRect(rb-cs*0.5+q*cs,-hw+1.2,cs,2.4);
+      ctx.fillStyle=(q%2)?"#FFFFFF":"#171C2E";ctx.fillRect(rb-cs*0.5+q*cs,hw-3.6,cs,2.4);}}
 
-  // покривна табела — по-едра при играча
-  if(B.sign||mine){
-    var sw=(B.sign?11:8)*k,sh=(B.sign?7:5)*k;
-    ctx.fillStyle=outline;rr(-sw/2-1.4,-sh/2-1.4,sw+2.8,sh+2.8,2.5);ctx.fill();
-    ctx.fillStyle=busy?"#3A4468":"#FFC300";rr(-sw/2,-sh/2,sw,sh,2);ctx.fill();
-    if(!busy&&night>0.25){ctx.fillStyle="rgba(255,214,90,.5)";
-      ctx.beginPath();ctx.arc(0,0,sw*0.9,0,7);ctx.fill();}
+  // отблясък по капака
+  ctx.fillStyle="rgba(255,255,255,"+(0.20*(1-night*0.85))+")";
+  rr(rf+len*0.03,-hw+2.4,len*0.13,wid-4.8,1.2);ctx.fill();
+
+  // фарове и стопове като правоъгълни блокове
+  ctx.fillStyle=night>0.15?"rgba(255,246,205,"+(0.65+0.35*night)+")":"#FFF4D6";
+  rr(hl-3.4,-hw+2.2,2.9,4.6*k,1.2);ctx.fill();rr(hl-3.4,hw-2.2-4.6*k,2.9,4.6*k,1.2);ctx.fill();
+  ctx.fillStyle=brake>0?"#FF4436":"rgba(196,58,48,"+(0.55+0.4*night)+")";
+  rr(-hl+0.6,-hw+2.2,2.6,4.2*k,1.1);ctx.fill();rr(-hl+0.6,hw-2.2-4.2*k,2.6,4.2*k,1.1);ctx.fill();
+
+  if(B.sign){                                    // истинска покривна табела
+    var sw=9.5*k,sh=5.4*k,sx=(rf+rb)/2;
+    ctx.fillStyle=o;rr(sx-sw/2-1.1,-sh/2-1.1,sw+2.2,sh+2.2,1.8);ctx.fill();
+    ctx.fillStyle=busy?"#3A4468":"#FFC300";rr(sx-sw/2,-sh/2,sw,sh,1.4);ctx.fill();
+    if(!busy&&night>0.25){ctx.fillStyle="rgba(255,214,90,.45)";
+      ctx.beginPath();ctx.arc(sx,0,sw*0.85,0,7);ctx.fill();}
+  }else if(mine){                                // дискретна лента за останалите
+    var bx=rf-len*0.02;
+    ctx.fillStyle=o;rr(bx-1.1,-3.4*k,3.4,6.8*k,1.4);ctx.fill();
+    ctx.fillStyle=busy?"#5A6488":"#FFC300";rr(bx-0.4,-2.7*k,2,5.4*k,1);ctx.fill();
   }
   if(dirt>0.12){
-    ctx.globalAlpha=Math.min(0.55,dirt*0.55);
-    ctx.fillStyle="#6B5A45";rr(-len/2,-wid/2,len,wid,r);ctx.fill();
+    ctx.globalAlpha=Math.min(0.5,dirt*0.5);
+    ctx.fillStyle="#6B5A45";rr(-hl,-hw,len,wid,r);ctx.fill();
     ctx.globalAlpha=1;
-    if(dirt>0.65){ctx.rotate(-steer*0.12);ctx.rotate(-a);
-      ctx.fillStyle=outline;ctx.beginPath();ctx.arc(0,-wid-6,8*k,0,7);ctx.fill();
+    if(dirt>0.65){ctx.rotate(-steer*0.10);ctx.rotate(-a);
+      ctx.fillStyle=o;ctx.beginPath();ctx.arc(0,-wid-6,8*k,0,7);ctx.fill();
       ctx.fillStyle="#FFC300";ctx.beginPath();ctx.arc(0,-wid-6,6.4*k,0,7);ctx.fill();
       ctx.fillStyle="#3B2C00";ctx.font="800 "+(11*k)+"px system-ui,sans-serif";ctx.textAlign="center";
       ctx.fillText("!",0,-wid-2);}
@@ -1915,49 +1962,94 @@ function drawAccident(a){
   ctx.fillStyle="#fff";ctx.font="800 20px system-ui";ctx.textAlign="center";ctx.fillText("!",a.x,a.y+9);
 }
 function drawPin(x,y,cl){
-  var b=Math.sin(cl.bob)*1.7,o=col(OUT,"#070B18");
-  var t=performance.now()/1000;
-  ctx.fillStyle="rgba(28,38,68,.24)";
-  ctx.beginPath();ctx.ellipse(x,y+2,10,4.2,0,0,7);ctx.fill();
+  var b=Math.sin(cl.bob)*1.5,o=col(OUT,"#070B18");
+  var t=performance.now()/1000,det=cam.s>minS*2.0;
+  var sh=hex2rgb(cl.shirt),pn=hex2rgb(cl.pants||"#2E3852");
+  ctx.fillStyle="rgba(26,36,64,.26)";
+  ctx.beginPath();ctx.ellipse(x,y+1.5,8.5,3.6,0,0,7);ctx.fill();
   ctx.save();ctx.translate(x,y+b);
-  // крака
-  ctx.fillStyle=o;rr(-5.6,-9,4.6,10,1.9);ctx.fill();rr(1,-9,4.6,10,1.9);ctx.fill();
-  // тяло с контур
-  ctx.fillStyle=o;rr(-8.8,-23.5,17.6,16.5,5.5);ctx.fill();
-  ctx.fillStyle=cl.shirt;rr(-7.2,-22,14.4,13.4,4.4);ctx.fill();
-  // ръце
-  ctx.fillStyle=o;rr(-11.6,-21.5,3.8,10.5,1.8);ctx.fill();rr(7.8,-21.5,3.8,10.5,1.8);ctx.fill();
-  // глава
-  ctx.fillStyle=o;ctx.beginPath();ctx.arc(0,-29.5,9.2,0,7);ctx.fill();
-  ctx.fillStyle=cl.skin;ctx.beginPath();ctx.arc(0,-29.5,7.7,0,7);ctx.fill();
-  ctx.fillStyle=cl.hair;ctx.beginPath();ctx.arc(0,-31,7.7,Math.PI*1.02,Math.PI*1.98);ctx.fill();
-  ctx.fillStyle="#2A3350";
-  ctx.beginPath();ctx.arc(-2.7,-29,1.3,0,7);ctx.fill();
-  ctx.beginPath();ctx.arc(2.7,-29,1.3,0,7);ctx.fill();
-  ctx.fillStyle="rgba(255,130,130,.35)";
-  ctx.beginPath();ctx.arc(-5.4,-27,2,0,7);ctx.fill();
-  ctx.beginPath();ctx.arc(5.4,-27,2,0,7);ctx.fill();
+
+  // крака и обувки
+  ctx.fillStyle=o;
+  if(cl.skirt){ctx.beginPath();ctx.moveTo(-6.2,-13.5);ctx.lineTo(6.2,-13.5);
+    ctx.lineTo(7.4,-4.5);ctx.lineTo(-7.4,-4.5);ctx.closePath();ctx.fill();
+    ctx.fillStyle=rgbs(sh,0.82);ctx.beginPath();ctx.moveTo(-5.2,-13);ctx.lineTo(5.2,-13);
+    ctx.lineTo(6.3,-5.4);ctx.lineTo(-6.3,-5.4);ctx.closePath();ctx.fill();
+    ctx.fillStyle=cl.skin;rr(-4,-5.6,3,4.6,1);ctx.fill();rr(1,-5.6,3,4.6,1);ctx.fill();
+  }else{
+    rr(-4.9,-14,4.2,13,1.4);ctx.fill();rr(0.7,-14,4.2,13,1.4);ctx.fill();
+    ctx.fillStyle=rgbs(pn,1);rr(-4.2,-13.4,3.4,11.6,1.1);ctx.fill();rr(0.8,-13.4,3.4,11.6,1.1);ctx.fill();
+  }
+  ctx.fillStyle=o;rr(-5.4,-1.9,5,2.6,1);ctx.fill();rr(0.4,-1.9,5,2.6,1);ctx.fill();
+
+  // торс с рамене
+  ctx.fillStyle=o;
+  ctx.beginPath();ctx.moveTo(-6.4,-24.6);ctx.lineTo(6.4,-24.6);
+  ctx.lineTo(7.4,-13.2);ctx.lineTo(-7.4,-13.2);ctx.closePath();ctx.fill();
+  var gs=ctx.createLinearGradient(-7,0,7,0);
+  gs.addColorStop(0,rgbs(sh,1.14));gs.addColorStop(0.55,rgbs(sh,1));gs.addColorStop(1,rgbs(sh,0.78));
+  ctx.fillStyle=gs;
+  ctx.beginPath();ctx.moveTo(-5.4,-23.9);ctx.lineTo(5.4,-23.9);
+  ctx.lineTo(6.3,-14);ctx.lineTo(-6.3,-14);ctx.closePath();ctx.fill();
+
+  // ръце с длани
+  ctx.fillStyle=o;rr(-9.4,-23.4,3.4,11,1.5);ctx.fill();rr(6,-23.4,3.4,11,1.5);ctx.fill();
+  ctx.fillStyle=rgbs(sh,0.9);rr(-8.8,-22.9,2.4,7.4,1.1);ctx.fill();rr(6.4,-22.9,2.4,7.4,1.1);ctx.fill();
+  ctx.fillStyle=cl.skin;
+  ctx.beginPath();ctx.arc(-7.6,-14.2,1.9,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(7.6,-14.2,1.9,0,7);ctx.fill();
+  if(cl.bag&&det){ctx.fillStyle=o;rr(7.2,-14.4,6.4,7,1.6);ctx.fill();
+    ctx.fillStyle="#7A5A3C";rr(7.8,-13.8,5.2,5.8,1.2);ctx.fill();}
+
+  // шия и глава
+  ctx.fillStyle=rgbs(hex2rgb(cl.skin),0.86);rr(-1.9,-26.6,3.8,3,1);ctx.fill();
+  ctx.fillStyle=o;ctx.beginPath();ctx.arc(0,-31.4,6.5,0,7);ctx.fill();
+  var gh=ctx.createLinearGradient(-6,0,6,0);
+  var sk=hex2rgb(cl.skin);
+  gh.addColorStop(0,rgbs(sk,1.08));gh.addColorStop(1,rgbs(sk,0.88));
+  ctx.fillStyle=gh;ctx.beginPath();ctx.arc(0,-31.4,5.5,0,7);ctx.fill();
+
+  // прическа
+  ctx.fillStyle=cl.hair;
+  if(cl.hs===1){                                   // дълга
+    ctx.beginPath();ctx.moveTo(-5.6,-31.8);ctx.lineTo(-5.2,-22.5);
+    ctx.lineTo(-2.8,-22.5);ctx.lineTo(-3.2,-31.8);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(5.6,-31.8);ctx.lineTo(5.2,-22.5);
+    ctx.lineTo(2.8,-22.5);ctx.lineTo(3.2,-31.8);ctx.closePath();ctx.fill();
+  }
+  ctx.beginPath();ctx.arc(0,-32.4,5.5,Math.PI*1.03,Math.PI*1.97);ctx.fill();
+  ctx.fillRect(-5.5,-33.4,11,2.2);
+  if(cl.hs===2){ctx.beginPath();ctx.arc(0,-37,3.1,0,7);ctx.fill();}
+
+  if(det){
+    ctx.fillStyle="#2A3350";
+    ctx.beginPath();ctx.ellipse(-2.1,-30.8,1.05,1.25,0,0,7);ctx.fill();
+    ctx.beginPath();ctx.ellipse(2.1,-30.8,1.05,1.25,0,0,7);ctx.fill();
+    ctx.strokeStyle="rgba(120,70,55,.5)";ctx.lineWidth=0.9;ctx.lineCap="round";
+    ctx.beginPath();ctx.arc(0,-29.6,1.9,0.25,Math.PI-0.25);ctx.stroke();
+  }
   ctx.restore();
+
   // маркер над главата, за да се намират и от далеч
   var mk2=cl.taken?"#33C176":(cl.vip?"#FFC300":"#FF8A50");
   var pu=0.5+0.5*Math.sin(t*3.4+cl.bob);
-  var my2=y+b-46-pu*2.5;
+  var my2=y+b-50-pu*2.5;
   ctx.fillStyle=o;
-  ctx.beginPath();ctx.moveTo(x,my2+13);ctx.lineTo(x-8,my2+3);ctx.lineTo(x+8,my2+3);ctx.closePath();ctx.fill();
-  ctx.beginPath();ctx.arc(x,my2-3,10,0,7);ctx.fill();
+  ctx.beginPath();ctx.moveTo(x,my2+12);ctx.lineTo(x-7,my2+3);ctx.lineTo(x+7,my2+3);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.arc(x,my2-3,9,0,7);ctx.fill();
   ctx.fillStyle=mk2;
-  ctx.beginPath();ctx.moveTo(x,my2+10.5);ctx.lineTo(x-5.8,my2+2.5);ctx.lineTo(x+5.8,my2+2.5);ctx.closePath();ctx.fill();
-  ctx.beginPath();ctx.arc(x,my2-3,8,0,7);ctx.fill();
+  ctx.beginPath();ctx.moveTo(x,my2+10);ctx.lineTo(x-5,my2+2.6);ctx.lineTo(x+5,my2+2.6);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.arc(x,my2-3,7.2,0,7);ctx.fill();
   ctx.textAlign="center";
-  if(cl.taken){ctx.strokeStyle="#0B3D25";ctx.lineWidth=2.6;ctx.lineCap="round";
-    ctx.beginPath();ctx.moveTo(x-3.6,my2-3);ctx.lineTo(x-1,my2-0.4);ctx.lineTo(x+3.8,my2-6);ctx.stroke();}
-  else if(cl.vip){ctx.fillStyle="#5A3F00";ctx.font="800 11px system-ui,sans-serif";
-    ctx.fillText("\u2605",x,my2+0.8);}
-  else{ctx.fillStyle="#7A2E00";ctx.beginPath();ctx.arc(x,my2-3,3,0,7);ctx.fill();}
+  if(cl.taken){ctx.strokeStyle="#0B3D25";ctx.lineWidth=2.4;ctx.lineCap="round";
+    ctx.beginPath();ctx.moveTo(x-3.2,my2-3);ctx.lineTo(x-0.9,my2-0.6);ctx.lineTo(x+3.4,my2-5.6);ctx.stroke();}
+  else if(cl.vip){ctx.fillStyle="#5A3F00";ctx.font="800 10px system-ui,sans-serif";
+    ctx.fillText("\u2605",x,my2+0.6);}
+  else{ctx.fillStyle="#7A2E00";ctx.beginPath();ctx.arc(x,my2-3,2.7,0,7);ctx.fill();}
   if(cl.vip&&!cl.taken&&night>0.2){
-    ctx.fillStyle="rgba(255,201,60,"+(0.16*night)+")";
-    ctx.beginPath();ctx.arc(x,y-22,34,0,7);ctx.fill();}
-  if(!cl.taken&&cl.wait>14)bubble(x,y-64,"Къде си?",1);
+    ctx.fillStyle="rgba(255,201,60,"+(0.15*night)+")";
+    ctx.beginPath();ctx.arc(x,y-24,34,0,7);ctx.fill();}
+  if(!cl.taken&&cl.wait>14)bubble(x,y-68,"Къде си?",1);
 }
 function drawSpot(x,y,cl){
   var cy=y-40,r=17;

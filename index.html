@@ -167,7 +167,7 @@
   <div id="rush" class="hidden">Час пик ×2</div>
   <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="zreset" title="Нова игра">⟲</button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v8 · 3 града</div>
+  <div id="ver">v9 · 3 града</div>
 </div>
 <div id="fleets"></div>
 
@@ -178,6 +178,14 @@
 <script>
 (function(){
 "use strict";
+/* Кеш на DOM възлите: update() се върти 60 пъти в секунда и не бива
+   да обхожда документа наново за всяко число, което изписва. */
+function $(id){return document.getElementById(id);}
+var EL={money:$("money"),gems:$("gems"),clock:$("clock"),net:$("net"),turbo:$("turbo"),
+  rush:$("rush"),quest:$("quest"),qTxt:$("qTxt"),qBar:$("qBar").firstChild,
+  qRew:$("qRew"),qTime:$("qTime"),cityTag:$("cityTag").firstChild};
+function setTxt(el,v){if(el&&el._v!==v){el._v=v;el.textContent=v;}}
+function setCls(el,v){if(el&&el._c!==v){el._c=v;el.className=v;}}
 function rnd(a,b){return a+Math.random()*(b-a);}
 function ri(a,b){return Math.floor(rnd(a,b+1));}
 function pick(a){return a[(Math.random()*a.length)|0];}
@@ -554,21 +562,20 @@ function questProgress(kind,val){
     if(quest.p>=quest.goal){
       quest.finished=true;
       S.money+=quest.rew;S.gems+=quest.gem;
-      document.getElementById("quest").classList.add("done");
+      EL.quest.classList.add("done");
       questCool=4;
       popupSmall("Мисия изпълнена! +"+money(quest.rew)+(quest.gem?" +1 💎":""));
     }
   }
 }
 function renderQuest(){
-  var el=document.getElementById("quest");
-  if(!quest){el.classList.add("hidden");return;}
-  el.classList.remove("hidden");
-  document.getElementById("qTxt").textContent=quest.finished?"Готово! "+quest.txt:quest.txt;
-  var pr=Math.min(1,quest.p/quest.goal);
-  document.getElementById("qBar").firstChild.style.width=(pr*100)+"%";
-  document.getElementById("qRew").textContent="+"+money(quest.rew)+(quest.gem?" +💎":"");
-  document.getElementById("qTime").textContent=quest.finished?"✓":Math.max(0,Math.ceil(quest.left))+"с";
+  if(!quest){EL.quest.classList.add("hidden");return;}
+  EL.quest.classList.remove("hidden");
+  setTxt(EL.qTxt,quest.finished?"Готово! "+quest.txt:quest.txt);
+  var w=(Math.min(1,quest.p/quest.goal)*100)+"%";
+  if(EL.qBar._w!==w){EL.qBar._w=w;EL.qBar.style.width=w;}
+  setTxt(EL.qRew,"+"+money(quest.rew)+(quest.gem?" +💎":""));
+  setTxt(EL.qTime,quest.finished?"✓":Math.max(0,Math.ceil(quest.left))+"с");
 }
 function popupSmall(txt){ bubbles.push({x:cam.x,y:cam.y-VH/cam.s*0.28,txt:txt,t:3,big:true}); }
 /* ==================== камера ==================== */
@@ -576,12 +583,16 @@ var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
 var VW=0,VH=0,DPR=1;
 var cam={x:WW/2,y:WH*0.14,s:1},camT={x:WW/2,y:WH*0.14,s:1},vel={x:0,y:0},minS=1,maxS=1;
 var FOCAL=2000;
-function resize(){
+function resize(reseed){
   DPR=Math.min(window.devicePixelRatio||1,2);
   var st=document.getElementById("stage");
   VW=st.clientWidth;VH=st.clientHeight;cv.width=VW*DPR;cv.height=VH*DPR;
   minS=VW/WW*0.95;maxS=minS*5;
-  camT.s=Math.min(maxS,Math.max(camT.s,minS*2.2));cam.s=camT.s;clampT();
+  if(reseed){camT.s=Math.min(maxS,Math.max(camT.s,minS*2.2));cam.s=camT.s;}
+  else{ // адресната лента на телефона праща resize постоянно — мащабът на играча остава
+    camT.s=Math.max(minS,Math.min(maxS,camT.s));
+    cam.s=Math.max(minS,Math.min(maxS,cam.s));}
+  clampT();
 }
 function clampT(){
   camT.s=Math.max(minS,Math.min(maxS,camT.s));
@@ -589,7 +600,7 @@ function clampT(){
   camT.x=Math.max(Math.min(hw,WW/2),Math.min(Math.max(WW-hw,WW/2),camT.x));
   camT.y=Math.max(Math.min(hh,WH/2),Math.min(Math.max(WH-hh,WH/2),camT.y));
 }
-window.addEventListener("resize",resize);
+window.addEventListener("resize",function(){resize();});
 function scr2world(sx,sy){var r=cv.getBoundingClientRect();
   return {x:(sx-r.left-VW/2)/cam.s+cam.x,y:(sy-r.top-VH/2)/cam.s+cam.y};}
 function zoomAt(sx,sy,f){
@@ -736,7 +747,7 @@ function tap(sx,sy){
       return;}}
 }
 /* ==================== логика ==================== */
-var spawnT=0,saveT=0,crateT=25,eventT=100,hist=[],allV=[];
+var spawnT=0,saveT=0,crateT=25,eventT=100,cardT=0,hist=[],allV=[];
 function update(dt){
   tsim+=dt;clock+=dt;night=nightFactor((clock/DAY)%1);
   var p=(clock/DAY)%1; dusk=Math.max(0,1-Math.abs(p-0.48)/0.09);
@@ -778,14 +789,17 @@ function update(dt){
     accidents[a].t-=dt;
     if(accidents[a].t<=0){ delete blocked[accidents[a].k]; accidents.splice(a,1); }
   }
-  document.getElementById("rush").classList.toggle("hidden",!rush);
+  EL.rush.classList.toggle("hidden",!rush);
 
   for(var c=clients.length-1;c>=0;c--){var cl=clients[c];cl.bob+=dt*3;
     if(!cl.taken){cl.wait+=dt;
       if(cl.wait>36){
-        var fine=Math.min(S.money,avgFare()*0.25);S.money-=fine;
-        if(quest&&quest.type==="nofail"&&!quest.finished)quest.p=0;
-        parts.push({txt:"−"+money(fine),red:true,x:nodes[cl.from].x,y:nodes[cl.from].y,z:34,vx:0,vy:0,vz:30,r:0,vr:0,t:1.4});
+        // изолиран от катастрофа клиент е недостижим по вина на картата, не на играча
+        if((cl.unreach||0)<3){
+          var fine=Math.min(S.money,avgFare()*0.25);S.money-=fine;
+          if(quest&&quest.type==="nofail"&&!quest.finished)quest.p=0;
+          parts.push({txt:"−"+money(fine),red:true,x:nodes[cl.from].x,y:nodes[cl.from].y,z:34,vx:0,vy:0,vz:30,r:0,vr:0,t:1.4});
+        }
         clients.splice(c,1);
       }}}
   allV=cars.filter(function(c){return c.state!=="idle";}).concat(npcs);
@@ -800,7 +814,7 @@ function update(dt){
 
   if(quest){
     if(!quest.finished&&quest.type==="nofail")questProgress("nofail",dt);
-    if(quest.finished){ questCool-=dt; if(questCool<=0){document.getElementById("quest").classList.remove("done");newQuest();} }
+    if(quest.finished){ questCool-=dt; if(questCool<=0){EL.quest.classList.remove("done");newQuest();} }
     else { quest.left-=dt; if(quest.left<=0) newQuest(); }
     renderQuest();
   }
@@ -810,16 +824,15 @@ function update(dt){
   hist.push({t:performance.now(),m:S.best});
   while(hist.length>2&&hist[0].t<performance.now()-20000)hist.shift();
   saveT-=dt;if(saveT<=0){saveT=6;save();}
-  document.getElementById("money").lastChild.nodeValue=money(S.money);
-  document.getElementById("gems").lastChild.nodeValue=" "+S.gems;
-  document.getElementById("clock").textContent=clockText();
-  var net=rate()-exp,ne=document.getElementById("net");
-  ne.textContent=(net>=0?"+":"−")+money(Math.abs(net))+"/сек   ·   разходи "+money(exp)+"/сек"+(broke?"   ·   без пари!":"");
-  ne.className=net>=0?"":"bad";
-  var tb=document.getElementById("turbo");
-  tb.className=(S.gems<1&&Date.now()>turboUntil)?"off":"";
-  tb.textContent=Date.now()<turboUntil?("⚡ "+Math.ceil((turboUntil-Date.now())/1000)+"с"):"⚡ Турбо · 1 💎";
-  updCards();
+  setTxt(EL.money,money(S.money));
+  setTxt(EL.gems," "+S.gems);
+  setTxt(EL.clock,clockText());
+  var net=rate()-exp;
+  setTxt(EL.net,(net>=0?"+":"−")+money(Math.abs(net))+"/сек   ·   разходи "+money(exp)+"/сек"+(broke?"   ·   без пари!":""));
+  setCls(EL.net,net>=0?"":"bad");
+  setCls(EL.turbo,(S.gems<1&&Date.now()>turboUntil)?"off":"");
+  setTxt(EL.turbo,Date.now()<turboUntil?("⚡ "+Math.ceil((turboUntil-Date.now())/1000)+"с"):"⚡ Турбо · 1 💎");
+  cardT-=dt;if(cardT<=0){cardT=0.2;updCards();}   // картите не се менят 60 пъти в секунда
 }
 function makeAccident(){
   var e=pick(edges);
@@ -831,9 +844,13 @@ function makeAccident(){
   accidents.push({k:kk,x:(a.x+b.x)/2,y:(a.y+b.y)/2,t:rnd(25,45)});
   var rep=Math.min(S.money,expenseRate()*10+80);S.money-=rep;
   cars.forEach(function(c){
-    if(c.state==="idle")return;
+    // toWash/toDepot нямат клиент — целта им е мивката/гаража
+    var to = c.state==="pickup"  ? (c.client && c.client.from)
+           : c.state==="ride"    ? (c.client && c.client.to)
+           : c.state==="toWash"  ? (wash && wash.node)
+           : c.state==="toDepot" ? (depot && depot.node) : null;
+    if(to==null)return;
     for(var i=c.seg;i<c.path.length-1;i++) if(key(c.path[i],c.path[i+1])===kk){
-      var to=c.state==="pickup"?c.client.from:c.client.to;
       var p=route(c.path[c.seg],to);
       if(p){c.path=p;c.seg=0;c.t=0;}
       break;
@@ -917,7 +934,8 @@ function drive(c,dt,broke){
     if(!fl.rest)for(var i=0;i<clients.length;i++){var cl=clients[i];if(cl.taken)continue;
       var d=Math.hypot(nodes[cl.from].x-c.x,nodes[cl.from].y-c.y);if(d<bd){bd=d;best=cl;}}
     if(best){var p=route(c.path[c.seg]||c.path[0],best.from);
-      if(p){best.taken=true;c.client=best;c.path=p;c.seg=0;c.t=0;c.state="pickup";c.idleT=0;}else c.wait=1;}
+      if(p){best.taken=true;c.client=best;c.path=p;c.seg=0;c.t=0;c.state="pickup";c.idleT=0;}
+      else{best.unreach=(best.unreach||0)+1;c.wait=1;}}
     else{
       c.idleT=(c.idleT||0)+0.6;c.wait=0.6;
       if(depot&&(fl.rest||c.idleT>6)){
@@ -1544,9 +1562,9 @@ function bubble(x,y,txt,al,big){
   ctx.globalAlpha=1;
 }
 /* ==================== карти ==================== */
-var wrap=document.getElementById("fleets");
+var wrap=document.getElementById("fleets"),cardEls=[],cityCard=null;
 function buildCards(){
-  wrap.innerHTML="";
+  wrap.innerHTML="";cardEls=[];cityCard=null;
   if(cityIdx<CITIES.length-1){
     var nx=CITIES[cityIdx+1];
     var cc=document.createElement("div");cc.className="card citycard";
@@ -1559,7 +1577,10 @@ function buildCards(){
         '<div class="cell"><small>райони</small><b>'+nx.zones.length+'</b></div>'+
       '</div>'+
       '<div class="btns"><button class="go" style="grid-column:1/-1">Премести се<small></small></button></div>';
-    cc.querySelector(".go").onclick=moveCity;
+    cc._r={go:cc.querySelector(".go")};
+    cc._r.goS=cc._r.go.querySelector("small");
+    cc._r.go.onclick=moveCity;
+    cityCard=cc;
     wrap.appendChild(cc);
   }
   fleets.forEach(function(fl){
@@ -1576,13 +1597,20 @@ function buildCards(){
       '</div>'+
       '<div class="btns"><button class="up">Ниво<small></small></button><button class="car">Купи кола<small></small></button></div>'+
       '<div class="btns"><button class="sell">Продай<small></small></button><button class="rest">Прибери</button></div>';
-    d.querySelector(".up").onclick=function(){var c=upCost(fl);
+    var R={lvn:d.querySelector(".lvn"),pm:d.querySelector(".pm"),cn:d.querySelector(".cn"),
+      ex:d.querySelector(".ex"),dt:d.querySelector(".dt"),stars:d.querySelector(".stars"),
+      up:d.querySelector(".up"),car:d.querySelector(".car"),
+      sell:d.querySelector(".sell"),rest:d.querySelector(".rest")};
+    R.upS=R.up.querySelector("small");R.carS=R.car.querySelector("small");
+    R.sellS=R.sell.querySelector("small");
+    d._r=R;cardEls.push(d);
+    R.up.onclick=function(){var c=upCost(fl);
       if(S.money>=c){S.money-=c;fl.lvl++;save();updCards();}};
-    d.querySelector(".car").onclick=function(){var c=carCost(fl);
+    R.car.onclick=function(){var c=carCost(fl);
       if(fl.cars>=MAXCARS)return;
       if(S.money>=c){S.money-=c;fl.cars++;syncCars();save();updCards();}};
-    d.querySelector(".sell").onclick=function(){ sellCar(fl); };
-    d.querySelector(".rest").onclick=function(){ fl.rest=!fl.rest; save(); updCards(); };
+    R.sell.onclick=function(){ sellCar(fl); };
+    R.rest.onclick=function(){ fl.rest=!fl.rest; save(); updCards(); };
     wrap.appendChild(d);
   });
   updCards();
@@ -1599,7 +1627,7 @@ function sellCar(fl){
   if(best<0)return;
   var c=cars[best];
   if(c.client){c.client.taken=false;}
-  releaseSlot(c);
+  releaseSlot(c);releaseBay(c);     // иначе боксът остава зает завинаги
   cars.splice(best,1);
   fl.cars--;
   var p=sellPrice(fl);S.money+=p;
@@ -1607,38 +1635,34 @@ function sellCar(fl){
   save();updCards();
 }
 function updCards(){
-  var gc=wrap.querySelector(".citycard");
-  if(gc){
-    var nx=CITIES[cityIdx+1],b=gc.querySelector(".go");
+  if(cityCard&&CITIES[cityIdx+1]){
+    var nx=CITIES[cityIdx+1],C=cityCard._r;
     var ready=nextCityReady(),can=ready&&S.money>=nx.price;
-    b.querySelector("small").textContent=ready?money(nx.price):"отключи всички райони";
-    b.className="go"+(can?"":" cant");
+    setTxt(C.goS,ready?money(nx.price):"отключи всички райони");
+    setCls(C.go,"go"+(can?"":" cant"));
   }
-  var cds=wrap.querySelectorAll(".card:not(.citycard)");
-  for(var i=0;i<fleets.length&&i<cds.length;i++){
-    var fl=fleets[i],d=cds[i],uc=upCost(fl),cc=carCost(fl);
-    d.querySelector(".lvn").textContent=fl.lvl;
-    d.querySelector(".pm").textContent=money(perKm(fl));
-    d.querySelector(".cn").textContent=fl.cars+" бр.";
-    d.querySelector(".ex").textContent=money(fl.cars*carUpkeep(fl));
+  for(var i=0;i<fleets.length&&i<cardEls.length;i++){
+    var fl=fleets[i],R=cardEls[i]._r,uc=upCost(fl),cc=carCost(fl);
+    setTxt(R.lvn,fl.lvl+"");
+    setTxt(R.pm,money(perKm(fl)));
+    setTxt(R.cn,fl.cars+" бр.");
+    setTxt(R.ex,money(fl.cars*carUpkeep(fl)));
     var dsum=0,dn=0;
     for(var y=0;y<cars.length;y++)if(cars[y].f===i){dsum+=cars[y].dirt||0;dn++;}
-    d.querySelector(".dt").textContent=Math.round((dn?dsum/dn:0)*100)+"%";
+    setTxt(R.dt,Math.round((dn?dsum/dn:0)*100)+"%");
     var st=Math.min(5,Math.ceil(fl.lvl/6)),s="";
     for(var k=0;k<5;k++)s+=k<st?"<i>★</i>":"★";
-    d.querySelector(".stars").innerHTML=s;
-    var ub=d.querySelector(".up"),cb=d.querySelector(".car");
-    ub.querySelector("small").textContent=money(uc);
-    ub.className="up"+(S.money<uc?" cant":"");
+    if(R.stars._h!==s){R.stars._h=s;R.stars.innerHTML=s;}
+    setTxt(R.upS,money(uc));
+    setCls(R.up,"up"+(S.money<uc?" cant":""));
     var full=fl.cars>=MAXCARS;
-    cb.querySelector("small").textContent=full?"пълен":money(cc);
-    cb.className="car"+((full||S.money<cc)?" cant":"");
-    var sb=d.querySelector(".sell"),rb=d.querySelector(".rest");
-    sb.querySelector("small").textContent=fl.cars>1?"+"+money(sellPrice(fl)):"–";
-    sb.className="sell"+(fl.cars>1?"":" cant");
+    setTxt(R.carS,full?"пълен":money(cc));
+    setCls(R.car,"car"+((full||S.money<cc)?" cant":""));
+    setTxt(R.sellS,fl.cars>1?"+"+money(sellPrice(fl)):"–");
+    setCls(R.sell,"sell"+(fl.cars>1?"":" cant"));
     var parked=0;for(var z=0;z<cars.length;z++)if(cars[z].f===i&&cars[z].state==="parked")parked++;
-    rb.textContent=fl.rest?("В гаража ("+parked+")"):"Прибери";
-    rb.className=fl.rest?"rest on":"rest";
+    setTxt(R.rest,fl.rest?("В гаража ("+parked+")"):"Прибери");
+    setCls(R.rest,fl.rest?"rest on":"rest");
   }
 }
 document.getElementById("turbo").onclick=function(){
@@ -1657,20 +1681,32 @@ function popupClose(){document.getElementById("modal").classList.add("hidden");}
 /* Записът работи навсякъде: localStorage, после IndexedDB, после в паметта. */
 var LS=(function(){try{localStorage.setItem("__t","1");localStorage.removeItem("__t");return localStorage;}catch(e){return null;}})();
 var IDB=null,memStore={};
-(function(){
+/* Отварянето на базата е асинхронно — всяко четене/писане го изчаква,
+   иначе първият достъп заварва IDB===null и резервният запис е безполезен. */
+var idbReady=new Promise(function(res){
   try{
     var rq=indexedDB.open("taxi-empire",1);
     rq.onupgradeneeded=function(){rq.result.createObjectStore("kv");};
-    rq.onsuccess=function(){IDB=rq.result;};
-  }catch(e){}
-})();
-function idbPut(k,v){ if(!IDB)return; try{IDB.transaction("kv","readwrite").objectStore("kv").put(v,k);}catch(e){} }
+    rq.onsuccess=function(){IDB=rq.result;res();};
+    rq.onerror=function(){res();};
+    rq.onblocked=function(){res();};
+  }catch(e){res();}
+  setTimeout(res,1500);          // предпазна мрежа, ако базата не отговори
+});
+function idbPut(k,v){
+  idbReady.then(function(){
+    if(!IDB)return;
+    try{IDB.transaction("kv","readwrite").objectStore("kv").put(v,k);}catch(e){}
+  });
+}
 function idbGet(k){
-  return new Promise(function(res){
-    if(!IDB){res(null);return;}
-    try{var r=IDB.transaction("kv","readonly").objectStore("kv").get(k);
-      r.onsuccess=function(){res(r.result||null);};r.onerror=function(){res(null);};
-    }catch(e){res(null);}
+  return idbReady.then(function(){
+    return new Promise(function(res){
+      if(!IDB){res(null);return;}
+      try{var r=IDB.transaction("kv","readonly").objectStore("kv").get(k);
+        r.onsuccess=function(){res(r.result||null);};r.onerror=function(){res(null);};
+      }catch(e){res(null);}
+    });
   });
 }
 var store={
@@ -1696,13 +1732,14 @@ var store={
     }
     var fired=false;
     function fin(){if(!fired){fired=true;if(done)done();}}
-    if(IDB){
+    idbReady.then(function(){
+      if(!IDB){fin();return;}
       try{
         var tx=IDB.transaction("kv","readwrite");
         tx.objectStore("kv").delete(k);
         tx.oncomplete=fin;tx.onerror=fin;tx.onabort=fin;
       }catch(e){fin();}
-    }else fin();
+    });
     setTimeout(fin,600);   // предпазна мрежа
   }
 };
@@ -1710,7 +1747,11 @@ var SAVEKEY="taxi-empire-save",resetSave=false;
 function rate(){if(hist.length<2)return 0;var a=hist[0],b=hist[hist.length-1],d=(b.t-a.t)/1000;return d>1?(b.m-a.m)/d:0;}
 function save(){if(!store||resetSave)return;
   try{store.set(SAVEKEY,JSON.stringify({m:S.money,b:S.best,g:S.gems,ck:clock,ci:cityIdx,
-    fl:fleets.map(function(f){return{i:f.idx,l:f.lvl,c:f.cars,r:f.rest?1:0};}),
+    fl:fleets.map(function(f,i){
+      var ds=0,dn=0;
+      for(var k=0;k<cars.length;k++)if(cars[k].f===i){ds+=cars[k].dirt||0;dn++;}
+      return{i:f.idx,l:f.lvl,c:f.cars,r:f.rest?1:0,d:dn?Math.round(ds/dn*100)/100:0};
+    }),
     zn:ZONES.map(function(z){return z.open?1:0;}),r:Math.max(0,rate()-expenseRate()),t:Date.now()}));}catch(e){}}
 var hiddenAt=0;
 document.addEventListener("visibilitychange",function(){
@@ -1738,7 +1779,7 @@ function loadCity(keepZones){
     c.path=[n];c.seg=0;c.t=0;c.x=nodes[n].x;c.y=nodes[n].y;
     c.state="idle";c.client=null;c.wait=rnd(0,1);c.asleep=false;c.idleT=0;
   });
-  resize();
+  resize(true);
   camT.x=cam.x=DOWNS[0].x;camT.y=cam.y=DOWNS[0].y;clampT();
   document.getElementById("cityTag").firstChild.nodeValue=CITY.name;
   for(var i=0;i<6;i++)spawnClient();
@@ -1757,25 +1798,34 @@ function moveCity(){
   popup("Нов град","Отваряш клон в "+CITY.name+
     ".<span class='big'>тарифи ×"+CITY.mult+"</span>По-голяма карта, повече трафик и по-високи разходи.");
 }
-genCity();buildZones();resize();spawnNpcs(CITY.npc);
+genCity();buildZones();resize(true);spawnNpcs(CITY.npc);
 function boot(d){
   if(d){
     S.money=d.m||0;S.best=d.b||0;S.gems=d.g||0;clock=d.ck||clock;
-    if(typeof d.ci==="number"&&CITIES[d.ci]){cityIdx=d.ci;CITY=CITIES[cityIdx];genCity();buildZones();resize();npcs=[];spawnNpcs(CITY.npc);
+    if(typeof d.ci==="number"&&CITIES[d.ci]){cityIdx=d.ci;CITY=CITIES[cityIdx];genCity();buildZones();resize(true);npcs=[];spawnNpcs(CITY.npc);
       camT.x=cam.x=DOWNS[0].x;camT.y=cam.y=DOWNS[0].y;clampT();
       document.getElementById("cityTag").firstChild.nodeValue=CITY.name;}
     (d.zn||[]).forEach(function(v,i){if(ZONES[i])ZONES[i].open=!!v||i===0;});
-    (d.fl||[]).forEach(function(f){addFleet(f.i);var Lf=fleets[fleets.length-1];Lf.lvl=f.l||1;Lf.cars=f.c||1;Lf.rest=!!f.r;});
+    (d.fl||[]).forEach(function(f){addFleet(f.i);var Lf=fleets[fleets.length-1];Lf.lvl=f.l||1;Lf.cars=f.c||1;Lf.rest=!!f.r;Lf._d=f.d||0;});
     var away=Math.min((Date.now()-d.t)/1000,4*3600),off=(d.r||0)*away*0.55;
     if(away>120&&off>1){S.money+=off;
       popup("Докато те нямаше","Приход минус разходи за "+Math.round(away/60)+" мин.<span class='big'>"+money(off)+"</span>");}
   }
   lastDay=Math.floor(clock/DAY);
   if(!fleets.length)addFleet(0);
-  syncCars();buildCards();newQuest();
+  syncCars();
+  cars.forEach(function(c){var f=fleets[c.f];if(f&&f._d)c.dirt=f._d;});
+  fleets.forEach(function(f){delete f._d;});
+  buildCards();newQuest();
   for(var i=0;i<6;i++)spawnClient();
-  var last=performance.now();
-  (function loop(now){var dt=Math.min((now-last)/1000,0.08);last=now;update(dt);draw();requestAnimationFrame(loop);})(last);
+  var last=performance.now(),errN=0;
+  // кадърът се презаписва пръв: грешка в update/draw не спира играта завинаги
+  (function loop(now){
+    requestAnimationFrame(loop);
+    var dt=Math.min((now-last)/1000,0.08);last=now;
+    try{update(dt);draw();}
+    catch(e){if(errN++<5&&window.console&&console.error)console.error("кадър:",e);}
+  })(last);
 }
 store.get(SAVEKEY).then(function(r){var d=null;try{d=r?JSON.parse(r.value):null;}catch(e){}boot(d);}).catch(function(){boot(null);});
 })();

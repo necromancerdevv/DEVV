@@ -1,5 +1,5 @@
 /* Името на кеша е ключът за инвалидация — вдига се при всеки нов билд на index.html. */
-const CACHE = "taxi-empire-v15";
+const CACHE = "taxi-empire-v16";
 const FILES = ["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon-maskable.png"];
 
 self.addEventListener("install", e => {

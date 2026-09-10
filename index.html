@@ -81,6 +81,10 @@
   .zb{width:40px;height:40px;border:0;border-radius:12px;background:var(--ink);color:#fff;
     font:inherit;font-size:20px;font-weight:800;box-shadow:0 4px 0 #0B1226}
   .zb:active{transform:translateY(3px);box-shadow:0 1px 0 #0B1226}
+  #menu{position:relative}
+  #menu .dot{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;
+    background:var(--meter);color:#fff;font-size:10.5px;font-weight:800;line-height:18px;
+    font-style:normal;padding:0 4px;box-shadow:0 2px 5px rgba(6,10,26,.5)}
   #turbo{position:absolute;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));border:0;border-radius:13px;padding:10px 14px;
     background:var(--taxi);color:#3B2C00;font:inherit;font-size:13.5px;font-weight:800;
     box-shadow:0 4px 0 var(--taxiD)}
@@ -218,9 +222,9 @@
   <div id="cityTag">Метрополи<small id="clock"></small></div>
   <div id="quest"><div id="qTxt"></div><div id="qBar"><i></i></div><div id="qMeta"><span id="qRew"></span><span id="qTime"></span></div></div>
   <div id="rush" class="hidden">Час пик ×2</div>
-  <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="menu" title="Меню">☰</button></div>
+  <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="menu" title="Меню">☰<i class="dot hidden" id="mdot"></i></button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v13 · 3 града</div>
+  <div id="ver">v14 · 3 града</div>
 </div>
 <div id="fleets"></div>
 
@@ -247,7 +251,7 @@
    да обхожда документа наново за всяко число, което изписва. */
 function $(id){return document.getElementById(id);}
 var EL={money:$("money"),gems:$("gems"),clock:$("clock"),net:$("net"),turbo:$("turbo"),
-  rush:$("rush"),quest:$("quest"),qTxt:$("qTxt"),qBar:$("qBar").firstChild,
+  rush:$("rush"),quest:$("quest"),qTxt:$("qTxt"),qBar:$("qBar").firstChild,mdot:$("mdot"),
   qRew:$("qRew"),qTime:$("qTime"),cityTag:$("cityTag").firstChild};
 function setTxt(el,v){if(el&&el._v!==v){el._v=v;el.textContent=v;}}
 function setCls(el,v){if(el&&el._c!==v){el._c=v;el.className=v;}}
@@ -546,7 +550,9 @@ var FLEETS=[
   {name:"Лукс Клас",col:"#2E3352",tier:55,at:5000000,body:"limo"}
 ];
 var fleets=[],cars=[],npcs=[],clients=[],parts=[],bubbles=[],crates=[],accidents=[];
-var S={money:900,best:0,gems:0},turboUntil=0,rushUntil=0;
+// 1200 стига точно за четвъртата кола: първият праг ×2 е достъпен веднага,
+// вместо играчът да чака пред подсказка, която не може да изпълни
+var S={money:1200,best:0,gems:0},turboUntil=0,rushUntil=0;
 var SET={sound:1,vibro:1};
 var ST={rides:0,km:0,vip:0,night:0,acc:0,wash:0,quests:0,gemsF:0,play:0};
 var PR={pp:0,tot:0,runs:0};        // престижни точки, изкарано за всички рестарти, брой рестарти
@@ -776,6 +782,7 @@ function resetGesture(){
   gest={x:c.x,y:c.y,d:c.d,n:c.n,t:performance.now()};
 }
 cv.addEventListener("pointerdown",function(e){
+  gestured=true;
   cv.setPointerCapture(e.pointerId);
   if(!pts[e.pointerId])np++;
   pts[e.pointerId]={x:e.clientX,y:e.clientY};
@@ -990,7 +997,8 @@ function update(dt){
   setCls(EL.net,net>=0?"":"bad");
   setCls(EL.turbo,(S.gems<1&&Date.now()>turboUntil)?"off":"");
   setTxt(EL.turbo,Date.now()<turboUntil?("⚡ "+Math.ceil((turboUntil-Date.now())/1000)+"с"):"⚡ Турбо · 1 💎");
-  cardT-=dt;if(cardT<=0){cardT=0.2;updCards();}   // картите не се менят 60 пъти в секунда
+  cardT-=dt;if(cardT<=0){cardT=0.2;updCards();   // картите не се менят 60 пъти в секунда
+    var pav=presAvail();setHid(EL.mdot,pav<1);if(pav>0)setTxt(EL.mdot,pav+"");}
 }
 /* ==================== събития ==================== */
 /* Часът пик беше единственото събитие; сега е един от четири вида,
@@ -1244,7 +1252,7 @@ function beep(freq,dur,type,vol,slide){
   }catch(e){}
 }
 function sfx(name){
-  if(!SET.sound)return;
+  if(!gestured||!SET.sound)return;
   if(name==="cash"){
     var now=Date.now();if(now-lastCash<130)return;lastCash=now;   // плащанията са чести
     beep(880,0.08,"square",0.07);setTimeout(function(){beep(1320,0.10,"square",0.06);},65);
@@ -1259,8 +1267,9 @@ function sfx(name){
   else if(name==="big"){beep(392,0.10,"triangle",0.09);setTimeout(function(){beep(587,0.10,"triangle",0.09);},95);
     setTimeout(function(){beep(784,0.10,"triangle",0.09);},190);setTimeout(function(){beep(1047,0.24,"triangle",0.08);},285);}
 }
+var gestured=false;
 function vibro(ms){
-  if(!SET.vibro||!navigator.vibrate)return;
+  if(!gestured||!SET.vibro||!navigator.vibrate)return;
   try{navigator.vibrate(ms);}catch(e){}
 }
 function burst(x,y,col,n){for(var i=0;i<n;i++)parts.push({x:x,y:y,z:16,col:col,
@@ -2029,6 +2038,7 @@ function renderPanel(){
 }
 function openPanel(){document.getElementById("panel").classList.remove("hidden");renderPanel();sfx("tap");}
 function closePanel(){document.getElementById("panel").classList.add("hidden");}
+document.addEventListener("pointerdown",function(){gestured=true;},{once:true,capture:true});
 document.getElementById("menu").onclick=openPanel;
 document.getElementById("pclose").onclick=closePanel;
 document.getElementById("panel").onclick=function(e){if(e.target.id==="panel")closePanel();};

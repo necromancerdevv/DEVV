@@ -245,7 +245,7 @@
   </div>
   <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="menu" title="Меню">☰<i class="dot hidden" id="mdot"></i></button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v18 · 3 града</div>
+  <div id="ver">v19 · 3 града</div>
 </div>
 <div id="fleets"></div>
 
@@ -596,6 +596,9 @@ function presMult(){return 1+0.25*PR.pp;}
    автопарка е точно наградата за рестарта. */
 function gateMult(){return Math.pow(presMult(),0.85);}
 function cityPrice(i){return Math.round(CITIES[i].price*gateMult());}
+// прагът за отключване на фирма също беше постоянно число: при ×42 приход
+// и петте фирми падаха за минута. Скалира се като районите и градовете.
+function fleetAt(i){return FLEETS[i].at*gateMult();}
 
 /* ---- постижения ---- */
 var ACHS=[
@@ -630,11 +633,11 @@ function nextMile(f){for(var i=0;i<CARMILE.length;i++)if(f.cars<CARMILE[i])retur
 function globalMult(){var t=totalCars(),m=1;for(var i=0;i<TOTMILE.length;i++)if(t>=TOTMILE[i])m*=1.5;return m;}
 function perKm(f){return 4.2*f.tier*CITY.mult*(1+0.40*(f.lvl-1))*fleetMult(f)*globalMult()
   *presMult()*achMult()*gemMult()*(Date.now()<x2Until?2:1);}
-function upCost(f){return Math.round(190*f.tier*Math.pow(1.31,f.lvl-1));}
-function carCost(f){return Math.round(340*f.tier*Math.pow(1.75,f.cars-1));}
+function upCost(f){return Math.round(190*f.tier*Math.pow(1.31,f.lvl-1)*gateMult());}
+function carCost(f){return Math.round(340*f.tier*Math.pow(1.75,f.cars-1)*gateMult());}
 // издръжката расте с бонуса, но по-бавно от него — иначе разходите заглъхват
 function carUpkeep(f){return 0.26*f.tier*CITY.upk*(1+0.16*(f.lvl-1))*Math.pow(fleetMult(f),0.6);}
-function sellPrice(f){return Math.round(340*f.tier*Math.pow(1.75,Math.max(0,f.cars-2))*0.55);}
+function sellPrice(f){return Math.round(340*f.tier*Math.pow(1.75,Math.max(0,f.cars-2))*0.55*gateMult());}
 function expenseRate(){
   var s=0;
   for(var i=0;i<cars.length;i++){
@@ -1081,7 +1084,7 @@ function update(dt){
     renderQuest();
   }
   // по изкараното за живота, не по касата — иначе харченето блокира прогреса
-  if(fleets.length<FLEETS.length&&S.best>=FLEETS[fleets.length].at){
+  if(fleets.length<FLEETS.length&&S.best>=fleetAt(fleets.length)){
     var nf=FLEETS[fleets.length];addFleet(fleets.length);syncCars();buildCards();
     popup("Нова фирма",nf.name+" вече кара за теб.<span class='big'>"+nf.name+"</span>");}
   hist.push({t:performance.now(),m:S.best});
@@ -2014,7 +2017,7 @@ function row(lb,vl,sub){
 function cityHTML(){
   var h='<div class="phead">'+CITY.name+' · район '+zonesOpen()+' от '+ZONES.length+'</div>';
   if(PR.pp>0)h+='<div class="prow"><div class="lb">Цени за този пробег'+
-    '<small>Растат с престижа, но по-бавно от прихода</small></div>'+
+    '<small>Всички цени растат с престижа, но по-бавно от прихода</small></div>'+
     '<div class="vl">×'+(Math.round(gateMult()*10)/10)+'</div></div>';
   for(var i=0;i<ZONES.length;i++){
     var Z=ZONES[i],can=S.money>=Z.cost;
@@ -2054,6 +2057,9 @@ function statHTML(){
   h+=row("VIP курсове",ST.vip);
   h+=row("Нощни курсове",ST.night);
   h+=row("Изпълнени мисии",ST.quests);
+  if(fleets.length<FLEETS.length)
+    h+=row("Следваща фирма",money(Math.max(0,fleetAt(fleets.length)-S.best)),
+      FLEETS[fleets.length].name+" · остава да изкараш");
   h+=row("Катастрофи",ST.acc);
   h+=row("Миения",ST.wash);
   h+=row("Град",CITY.name);
@@ -2062,8 +2068,8 @@ function statHTML(){
   h+=row("Престиж","×"+(Math.round(presMult()*100)/100));
   h+=row("Постижения","×"+(Math.round(achMult()*100)/100));
   h+=row("Магазин","×"+(Math.round(gemMult()*100)/100));
-  if(PR.pp>0)h+=row("Цени на райони и градове","×"+(Math.round(gateMult()*10)/10),
-    "растат по-бавно от прихода");
+  if(PR.pp>0)h+=row("Всички цени","×"+(Math.round(gateMult()*10)/10),
+    "растат по-бавно от прихода ×"+(Math.round(presMult()*10)/10));
   if(Date.now()<x2Until)h+=row("Двоен приход","×2",Math.ceil((x2Until-Date.now())/1000)+" сек");
   h+='<div class="phead">Продай империята</div>';
   var g=presAvail();
@@ -2164,7 +2170,7 @@ function askPrestige(){
   document.getElementById("modal").classList.remove("hidden");
   ok.onclick=function(){
     PR.pp+=g;PR.runs++;
-    S.money=1200;S.best=0;fleets=[];cars=[];cityIdx=0;   // както при нова игра
+    S.money=Math.round(1200*gateMult());S.best=0;fleets=[];cars=[];cityIdx=0;
     loadCity(null);addFleet(0);syncCars();buildCards();newQuest();
     achCheck();save();
     document.getElementById("modal").classList.add("hidden");no.classList.add("hidden");

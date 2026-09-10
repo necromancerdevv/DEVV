@@ -123,6 +123,15 @@
   .citycard .lvb{background:var(--taxi);color:#3B2C00}
   .citycard .cell small{color:#9AA3C0}
   .citycard .cell b{color:#FDFBF4}
+  /* заключен следващ град: само въпросителна, подробностите идват след отключване */
+  .citycard .myst{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:5px;padding:16px 12px 12px;cursor:pointer}
+  .citycard .myst .q{font-size:44px;line-height:1;font-weight:800;color:var(--taxi);
+    text-shadow:0 3px 0 rgba(0,0,0,.25)}
+  .citycard .myst .hint{font-size:11px;font-weight:700;color:#9AA3C0;text-align:center;
+    line-height:1.35;white-space:pre-line}
+  .citycard .myst .bar{width:100%;height:6px;border-radius:4px;background:#17203A;overflow:hidden}
+  .citycard .myst .bar i{display:block;height:100%;background:var(--taxi);width:0%;transition:width .25s}
   .go{background:var(--taxi);color:#3B2C00;box-shadow:0 3px 0 var(--taxiD)}
   .go.cant{background:#39415F;color:#8C93AC;box-shadow:0 3px 0 #232B45}
   .btns button.cant{background:#E9E6DB;color:#AFAB9C;box-shadow:0 3px 0 #D3CFC2}
@@ -167,7 +176,7 @@
   <div id="rush" class="hidden">Час пик ×2</div>
   <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="zreset" title="Нова игра">⟲</button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v9 · 3 града</div>
+  <div id="ver">v10 · 3 града</div>
 </div>
 <div id="fleets"></div>
 
@@ -186,6 +195,7 @@ var EL={money:$("money"),gems:$("gems"),clock:$("clock"),net:$("net"),turbo:$("t
   qRew:$("qRew"),qTime:$("qTime"),cityTag:$("cityTag").firstChild};
 function setTxt(el,v){if(el&&el._v!==v){el._v=v;el.textContent=v;}}
 function setCls(el,v){if(el&&el._c!==v){el._c=v;el.className=v;}}
+function setHid(el,v){if(el&&el._hid!==v){el._hid=v;el.classList.toggle("hidden",v);}}
 function rnd(a,b){return a+Math.random()*(b-a);}
 function ri(a,b){return Math.floor(rnd(a,b+1));}
 function pick(a){return a[(Math.random()*a.length)|0];}
@@ -1568,18 +1578,26 @@ function buildCards(){
   if(cityIdx<CITIES.length-1){
     var nx=CITIES[cityIdx+1];
     var cc=document.createElement("div");cc.className="card citycard";
-    cc.innerHTML='<div class="chead"><span class="nm">'+nx.name+'</span>'+
+    cc.innerHTML='<div class="chead"><span class="nm">?</span>'+
       '<span class="lvb">град '+(cityIdx+2)+'</span></div>'+
+      '<div class="myst"><div class="q">?</div>'+
+        '<div class="bar"><i></i></div>'+
+        '<div class="hint"></div></div>'+
+      '<div class="real hidden">'+
       '<div class="grid">'+
         '<div class="cell"><small>тарифи</small><b>×'+nx.mult+'</b></div>'+
         '<div class="cell"><small>разходи</small><b>×'+nx.upk+'</b></div>'+
         '<div class="cell"><small>карта</small><b>'+Math.round(nx.w*nx.h/(CITIES[0].w*CITIES[0].h)*10)/10+'×</b></div>'+
         '<div class="cell"><small>райони</small><b>'+nx.zones.length+'</b></div>'+
       '</div>'+
-      '<div class="btns"><button class="go" style="grid-column:1/-1">Премести се<small></small></button></div>';
-    cc._r={go:cc.querySelector(".go")};
+      '<div class="btns"><button class="go" style="grid-column:1/-1">Премести се<small></small></button></div>'+
+      '</div>';
+    cc._r={go:cc.querySelector(".go"),nm:cc.querySelector(".nm"),
+      myst:cc.querySelector(".myst"),real:cc.querySelector(".real"),
+      hint:cc.querySelector(".hint"),bar:cc.querySelector(".bar").firstChild};
     cc._r.goS=cc._r.go.querySelector("small");
     cc._r.go.onclick=moveCity;
+    cc._r.myst.onclick=cityTeaser;
     cityCard=cc;
     wrap.appendChild(cc);
   }
@@ -1636,10 +1654,19 @@ function sellCar(fl){
 }
 function updCards(){
   if(cityCard&&CITIES[cityIdx+1]){
-    var nx=CITIES[cityIdx+1],C=cityCard._r;
-    var ready=nextCityReady(),can=ready&&S.money>=nx.price;
-    setTxt(C.goS,ready?money(nx.price):"отключи всички райони");
-    setCls(C.go,"go"+(can?"":" cant"));
+    var nx=CITIES[cityIdx+1],C=cityCard._r,ready=nextCityReady();
+    setHid(C.myst,ready);setHid(C.real,!ready);
+    if(ready){
+      setTxt(C.nm,nx.name);
+      setTxt(C.goS,money(nx.price));
+      setCls(C.go,"go"+(S.money>=nx.price?"":" cant"));
+    }else{
+      var o=zonesOpen(),t=ZONES.length;
+      setTxt(C.nm,"?");
+      setTxt(C.hint,"Отключи всички райони"+String.fromCharCode(10)+o+" / "+t);
+      var w=Math.round(o/t*100)+"%";
+      if(C.bar._w!==w){C.bar._w=w;C.bar.style.width=w;}
+    }
   }
   for(var i=0;i<fleets.length&&i<cardEls.length;i++){
     var fl=fleets[i],R=cardEls[i]._r,uc=upCost(fl),cc=carCost(fl);
@@ -1783,6 +1810,15 @@ function loadCity(keepZones){
   camT.x=cam.x=DOWNS[0].x;camT.y=cam.y=DOWNS[0].y;clampT();
   document.getElementById("cityTag").firstChild.nodeValue=CITY.name;
   for(var i=0;i<6;i++)spawnClient();
+}
+function zonesOpen(){var k=0;for(var i=0;i<ZONES.length;i++)if(ZONES[i].open)k++;return k;}
+function cityTeaser(){
+  var o=zonesOpen(),t=ZONES.length,left=t-o;
+  popup("Нов град?","Следващият град се отваря, след като развиеш този докрай."+
+    "<span class='big'>"+o+" / "+t+"</span>"+
+    (left?("Докосни заключен район на картата, за да го купиш. "+
+           (left===1?"Остава 1 район.":"Остават "+left+" района.")):
+          "Всички райони са твои — вече можеш да се местиш."));
 }
 function nextCityReady(){
   if(cityIdx>=CITIES.length-1)return false;

@@ -245,7 +245,7 @@
   </div>
   <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="menu" title="Меню">☰<i class="dot hidden" id="mdot"></i></button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v17 · 3 града</div>
+  <div id="ver">v18 · 3 града</div>
 </div>
 <div id="fleets"></div>
 
@@ -536,7 +536,7 @@ var ZONES=[];
 function buildZones(keep){
   var acc=0,old=keep||[];
   ZONES=CITY.zones.map(function(z,i){
-    var o={y:WH*acc,h:WH*z.f,cost:z.c,open:i===0||!!old[i],name:z.n};
+    var o={y:WH*acc,h:WH*z.f,cost:Math.round(z.c*gateMult()),open:i===0||!!old[i],name:z.n};
     acc+=z.f;return o;
   });
 }
@@ -588,6 +588,14 @@ var ACH={},TUT={},gemBuff=0,x2Until=0;
 function presPts(){return Math.floor(Math.sqrt(PR.tot/250000));}
 function presAvail(){return Math.max(0,presPts()-PR.pp);}
 function presMult(){return 1+0.25*PR.pp;}
+/* Приходът растеше без таван, а всяка цена в играта беше постоянно число —
+   затова след няколко рестарта цялата игра се изкупуваше за секунди.
+   Районите и градовете вече поскъпват с престижа, но по-бавно от прихода
+   (степен 0.85), така че всеки следващ пробег е по-бърз, без да се срине.
+   Колите и нивата остават на постоянна цена: бързото възстановяване на
+   автопарка е точно наградата за рестарта. */
+function gateMult(){return Math.pow(presMult(),0.85);}
+function cityPrice(i){return Math.round(CITIES[i].price*gateMult());}
 
 /* ---- постижения ---- */
 var ACHS=[
@@ -942,7 +950,7 @@ function advice(){
     return{k:"sleep",t:"Шофьор е заспал. Докосни колата му, за да го събудиш."};
   if(S.best>2000&&totalCars()>3&&rate()-expenseRate()<0)
     return{k:"red",t:"Разходите изядоха прихода. Прибери коли в гаража, докато се оправим."};
-  if(nextCityReady()&&CITIES[cityIdx+1]&&S.money>=CITIES[cityIdx+1].price)
+  if(nextCityReady()&&CITIES[cityIdx+1]&&S.money>=cityPrice(cityIdx+1))
     return{k:"city",t:"Всички райони са твои. Време е за "+CITIES[cityIdx+1].name+"."};
   for(i=0;i<ZONES.length;i++)if(!ZONES[i].open&&S.money>=ZONES[i].cost)
     return{k:"zone"+i,t:"Имаш за "+ZONES[i].name+". Отключи го — повече клиенти и по-дълги курсове."};
@@ -2005,6 +2013,9 @@ function row(lb,vl,sub){
 }
 function cityHTML(){
   var h='<div class="phead">'+CITY.name+' · район '+zonesOpen()+' от '+ZONES.length+'</div>';
+  if(PR.pp>0)h+='<div class="prow"><div class="lb">Цени за този пробег'+
+    '<small>Растат с престижа, но по-бавно от прихода</small></div>'+
+    '<div class="vl">×'+(Math.round(gateMult()*10)/10)+'</div></div>';
   for(var i=0;i<ZONES.length;i++){
     var Z=ZONES[i],can=S.money>=Z.cost;
     h+='<div class="prow"><div class="lb">'+Z.name+
@@ -2017,7 +2028,7 @@ function cityHTML(){
   if(cityIdx>=CITIES.length-1)
     return h+'<div class="phead">Това е последният град</div>'+
       '<div class="prow"><div class="lb">Няма накъде повече<small>Продай империята от раздел Статус, за да започнеш отново по-силен</small></div></div>';
-  var nx=CITIES[cityIdx+1],ready=nextCityReady(),can=ready&&S.money>=nx.price;
+  var nx=CITIES[cityIdx+1],ready=nextCityReady(),np=cityPrice(cityIdx+1),can=ready&&S.money>=np;
   h+='<div class="phead">Следващ град</div>';
   if(!ready){
     h+='<div class="prow"><div class="lb">?<small>Отключи всички райони, за да го видиш</small></div>'+
@@ -2031,7 +2042,7 @@ function cityHTML(){
   h+='<div class="prow"><div class="lb">Карта<small>'+nx.zones.length+' района</small></div>'+
      '<div class="vl">'+(Math.round(nx.w*nx.h/(CITIES[0].w*CITIES[0].h)*10)/10)+'× по-голяма</div></div>';
   h+='<button class="pbtn'+(can?'':' cant')+'" data-act="move" style="margin-top:10px">'+
-     'Премести се · '+money(nx.price)+'</button>';
+     'Премести се · '+money(np)+'</button>';
   return h;
 }
 function statHTML(){
@@ -2051,6 +2062,8 @@ function statHTML(){
   h+=row("Престиж","×"+(Math.round(presMult()*100)/100));
   h+=row("Постижения","×"+(Math.round(achMult()*100)/100));
   h+=row("Магазин","×"+(Math.round(gemMult()*100)/100));
+  if(PR.pp>0)h+=row("Цени на райони и градове","×"+(Math.round(gateMult()*10)/10),
+    "растат по-бавно от прихода");
   if(Date.now()<x2Until)h+=row("Двоен приход","×2",Math.ceil((x2Until-Date.now())/1000)+" сек");
   h+='<div class="phead">Продай империята</div>';
   var g=presAvail();
@@ -2144,13 +2157,14 @@ function askPrestige(){
   document.getElementById("mT").textContent="Да продадеш ли империята?";
   document.getElementById("mP").innerHTML=
     "Връщаш се в първия град с една фирма. Пазиш диамантите, постиженията и статистиката."+
-    "<span class='big'>+"+g+" точки</span>Всяка точка дава +25% приход завинаги.";
+    "<span class='big'>+"+g+" точки</span>Всяка точка дава +25% приход завинаги. "+
+    "Районите и градовете поскъпват с престижа, но по-бавно — пробегът остава предизвикателство.";
   var ok=document.getElementById("mB"),no=document.getElementById("mC");
   ok.textContent="Продай";ok.disabled=false;no.classList.remove("hidden");
   document.getElementById("modal").classList.remove("hidden");
   ok.onclick=function(){
     PR.pp+=g;PR.runs++;
-    S.money=900;S.best=0;fleets=[];cars=[];cityIdx=0;
+    S.money=1200;S.best=0;fleets=[];cars=[];cityIdx=0;   // както при нова игра
     loadCity(null);addFleet(0);syncCars();buildCards();newQuest();
     achCheck();save();
     document.getElementById("modal").classList.add("hidden");no.classList.add("hidden");
@@ -2303,7 +2317,7 @@ function nextCityReady(){
 }
 function moveCity(){
   if(!nextCityReady())return;
-  var price=CITIES[cityIdx+1].price;
+  var price=cityPrice(cityIdx+1);
   if(S.money<price)return;
   S.money-=price;cityIdx++;
   loadCity(null);buildCards();save();

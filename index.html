@@ -158,6 +158,46 @@
   #box button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--taxiD)}
   #box #mC{background:#E6E3D8;color:#4A5068;box-shadow:0 4px 0 #C6C2B4;margin-top:8px}
   #box button[disabled]{opacity:.6}
+  /* ---------- общ панел с раздели ---------- */
+  #panel{position:fixed;inset:0;background:rgba(14,20,42,.72);z-index:8;
+    display:flex;align-items:flex-end;justify-content:center}
+  #pbox{background:var(--paper);width:100%;max-width:420px;max-height:88vh;
+    border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 -14px 40px rgba(8,12,30,.5)}
+  #pbox:before{content:"";display:block;height:8px;flex:0 0 auto;
+    background-image:
+      linear-gradient(45deg,var(--taxi) 25%,transparent 25%,transparent 75%,var(--taxi) 75%),
+      linear-gradient(45deg,var(--taxi) 25%,#fff 25%,#fff 75%,var(--taxi) 75%);
+    background-size:8px 8px;background-position:0 0,4px 4px}
+  #ptabs{display:flex;gap:0;border-bottom:2px solid rgba(23,32,58,.12);flex:0 0 auto}
+  #ptabs button{flex:1;border:0;background:none;font:inherit;font-size:12.5px;font-weight:800;
+    color:var(--muted);padding:11px 4px 9px;border-bottom:3px solid transparent}
+  #ptabs button.on{color:var(--ink);border-bottom-color:var(--taxi)}
+  #pbody{overflow-y:auto;padding:14px 16px 18px;-webkit-overflow-scrolling:touch}
+  #pclose{flex:0 0 auto;border:0;border-radius:11px;margin:0 16px 16px;padding:12px;
+    background:#E6E3D8;color:#4A5068;font:inherit;font-size:14.5px;font-weight:800;
+    box-shadow:0 4px 0 #C6C2B4}
+  #pclose:active{transform:translateY(3px);box-shadow:0 1px 0 #C6C2B4}
+  .prow{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:11px 0;border-bottom:1px solid rgba(23,32,58,.09)}
+  .prow:last-child{border-bottom:0}
+  .prow .lb{font-size:13.5px;font-weight:800;color:var(--ink)}
+  .prow .lb small{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-top:2px}
+  .prow .vl{font-size:14px;font-weight:800;color:var(--ink);white-space:nowrap}
+  .tgl{border:0;border-radius:20px;width:52px;height:30px;background:#D6D2C4;position:relative;
+    flex:0 0 auto;transition:background .15s}
+  .tgl:after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+    background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.22);transition:transform .15s}
+  .tgl.on{background:var(--meter)}
+  .tgl.on:after{transform:translateX(22px)}
+  .pbtn{border:0;border-radius:10px;padding:11px 12px;font:inherit;font-size:13.5px;font-weight:800;
+    background:var(--taxi);color:#3B2C00;box-shadow:0 3px 0 var(--taxiD);width:100%}
+  .pbtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--taxiD)}
+  .pbtn.danger{background:#E8D5CE;color:#8A3A28;box-shadow:0 3px 0 #CBB0A6}
+  .pbtn.cant{background:#E9E6DB;color:#AFAB9C;box-shadow:0 3px 0 #D3CFC2}
+  .phead{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin:14px 0 4px}
+  .phead:first-child{margin-top:0}
   #ver{position:absolute;left:0;right:0;bottom:4px;text-align:center;pointer-events:none;
     font-size:10.5px;font-weight:700;color:rgba(23,32,58,.30);letter-spacing:.4px}
   .hidden{display:none!important}
@@ -177,11 +217,22 @@
   <div id="cityTag">Метрополи<small id="clock"></small></div>
   <div id="quest"><div id="qTxt"></div><div id="qBar"><i></i></div><div id="qMeta"><span id="qRew"></span><span id="qTime"></span></div></div>
   <div id="rush" class="hidden">Час пик ×2</div>
-  <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="zreset" title="Нова игра">⟲</button></div>
+  <div id="zoom"><button class="zb" id="zin">+</button><button class="zb" id="zout">−</button><button class="zb" id="menu" title="Меню">☰</button></div>
   <button id="turbo">⚡ Турбо · 1 💎</button>
-  <div id="ver">v11 · 3 града</div>
+  <div id="ver">v12 · 3 града</div>
 </div>
 <div id="fleets"></div>
+
+<div id="panel" class="hidden"><div id="pbox">
+  <div id="ptabs">
+    <button data-tab="stat" class="on">Статистика</button>
+    <button data-tab="ach">Постижения</button>
+    <button data-tab="shop">Магазин</button>
+    <button data-tab="set">Настройки</button>
+  </div>
+  <div id="pbody"></div>
+  <button id="pclose">Затвори</button>
+</div></div>
 
 <div id="modal" class="hidden"><div id="box">
   <h2 id="mT"></h2><p id="mP"></p><button id="mB">Продължи</button><button id="mC" class="hidden">Откажи</button>
@@ -494,6 +545,41 @@ var FLEETS=[
 ];
 var fleets=[],cars=[],npcs=[],clients=[],parts=[],bubbles=[],crates=[],accidents=[];
 var S={money:900,best:0,gems:0},turboUntil=0,rushUntil=0;
+var SET={sound:1,vibro:1};
+var ST={rides:0,km:0,vip:0,night:0,acc:0,wash:0,quests:0,gemsF:0,play:0};
+var PR={pp:0,tot:0,runs:0};        // престижни точки, изкарано за всички рестарти, брой рестарти
+var DY={last:0,streak:0};
+var ACH={},TUT={},gemBuff=0,x2Until=0;
+
+/* ---- престиж ---- */
+function presPts(){return Math.floor(Math.sqrt(PR.tot/250000));}
+function presAvail(){return Math.max(0,presPts()-PR.pp);}
+function presMult(){return 1+0.25*PR.pp;}
+
+/* ---- постижения ---- */
+var ACHS=[
+  {k:"r10",   n:"Първи десет",      d:"10 курса",                b:0.02,t:function(){return ST.rides>=10;}},
+  {k:"r100",  n:"Стотица",          d:"100 курса",               b:0.03,t:function(){return ST.rides>=100;}},
+  {k:"r1000", n:"Хилядник",         d:"1000 курса",              b:0.05,t:function(){return ST.rides>=1000;}},
+  {k:"km1k",  n:"Хиляда километра", d:"1000 км пробег",          b:0.03,t:function(){return ST.km>=1000;}},
+  {k:"vip10", n:"Важни клиенти",    d:"10 VIP курса",            b:0.03,t:function(){return ST.vip>=10;}},
+  {k:"n50",   n:"Нощна смяна",      d:"50 нощни курса",          b:0.03,t:function(){return ST.night>=50;}},
+  {k:"q10",   n:"Диспечерът вярва", d:"10 изпълнени мисии",      b:0.03,t:function(){return ST.quests>=10;}},
+  {k:"w20",   n:"Чисти коли",       d:"20 миения",               b:0.02,t:function(){return ST.wash>=20;}},
+  {k:"c14",   n:"Пълен парк",       d:"14 коли в една фирма",    b:0.05,t:function(){
+      for(var i=0;i<fleets.length;i++)if(fleets[i].cars>=MAXCARS)return true;return false;}},
+  {k:"city2", n:"Втори град",       d:"Отвори клон в нов град",  b:0.05,t:function(){return cityIdx>=1;}},
+  {k:"city3", n:"Мегаполис",        d:"Стигни третия град",      b:0.08,t:function(){return cityIdx>=2;}},
+  {k:"pres1", n:"Нов старт",        d:"Продай империята веднъж", b:0.10,t:function(){return PR.runs>=1;}}
+];
+function achMult(){var m=1;for(var i=0;i<ACHS.length;i++)if(ACH[ACHS[i].k])m+=ACHS[i].b;return m;}
+function achCheck(){
+  for(var i=0;i<ACHS.length;i++){
+    var a=ACHS[i];
+    if(!ACH[a.k]&&a.t()){ACH[a.k]=1;popupSmall("Постижение: "+a.n);sfx("big");vibro([12,50,12]);save();}
+  }
+}
+function gemMult(){return 1+0.05*gemBuff;}
 function addFleet(i){var f=FLEETS[i];fleets.push({idx:i,name:f.name,col:f.col,tier:f.tier,body:f.body,lvl:1,cars:i===0?3:1});}
 /* Умножаващият слой: линейните надграждания сами по себе си не догонват
    експоненциалните цени, затова праговете дават скокове. */
@@ -501,7 +587,8 @@ var CARMILE=[4,8,14],TOTMILE=[10,20,35,55];
 function fleetMult(f){var m=1;for(var i=0;i<CARMILE.length;i++)if(f.cars>=CARMILE[i])m*=2;return m;}
 function nextMile(f){for(var i=0;i<CARMILE.length;i++)if(f.cars<CARMILE[i])return CARMILE[i];return 0;}
 function globalMult(){var t=totalCars(),m=1;for(var i=0;i<TOTMILE.length;i++)if(t>=TOTMILE[i])m*=1.5;return m;}
-function perKm(f){return 4.2*f.tier*CITY.mult*(1+0.40*(f.lvl-1))*fleetMult(f)*globalMult();}
+function perKm(f){return 4.2*f.tier*CITY.mult*(1+0.40*(f.lvl-1))*fleetMult(f)*globalMult()
+  *presMult()*achMult()*gemMult()*(Date.now()<x2Until?2:1);}
 function upCost(f){return Math.round(190*f.tier*Math.pow(1.31,f.lvl-1));}
 function carCost(f){return Math.round(340*f.tier*Math.pow(1.75,f.cars-1));}
 // издръжката расте с бонуса, но по-бавно от него — иначе разходите заглъхват
@@ -540,7 +627,7 @@ var HAIR=["#2E2A28","#6B4423","#C9A227","#B03A2E","#4A4E69","#DDDDDD"];
 var SHIRT=["#4FB3F6","#FF6B6B","#57C97C","#FFC93C","#C77DFF","#FF9F6E"];
 var SPOTS=["coffee","pizza","bowling","gym","cinema","bar"];
 function spawnClient(){
-  var cap=6+ZONES.filter(function(z){return z.open;}).length*3+fleets.length*2+(Date.now()<rushUntil?6:0);
+  var cap=6+ZONES.filter(function(z){return z.open;}).length*3+fleets.length*2+(evOn()?6:0);
   if(clients.length>=cap)return;
   var a=randomOpenNode(),b=randomOpenNode(),t=0;
   while((b===a||Math.hypot(nodes[a].x-nodes[b].x,nodes[a].y-nodes[b].y)<280)&&t++<40)b=randomOpenNode();
@@ -584,8 +671,8 @@ function questProgress(kind,val){
       quest.finished=true;
       S.money+=quest.rew;S.gems+=quest.gem;
       EL.quest.classList.add("done");
-      questCool=4;
-      popupSmall("Мисия изпълнена! +"+money(quest.rew)+(quest.gem?" +1 💎":""));
+      questCool=4;ST.quests++;sfx("quest");vibro([12,40,12]);
+      popupSmall("Мисия изпълнена! +"+money(quest.rew)+(quest.gem?" +"+quest.gem+" 💎":""));
     }
   }
 }
@@ -599,6 +686,26 @@ function renderQuest(){
   setTxt(EL.qTime,quest.finished?"✓":Math.max(0,Math.ceil(quest.left))+"с");
 }
 function popupSmall(txt){ bubbles.push({x:cam.x,y:cam.y-VH/cam.s*0.28,txt:txt,t:3,big:true}); }
+/* ==================== магазин за диаманти ==================== */
+var SHOP=[
+  {k:"reroll", n:"Нова мисия",         d:"Сменя текущата мисия",           c:1},
+  {k:"washall",n:"Измий всички коли",  d:"Нула мръсотия веднага",          c:2},
+  {k:"x2",     n:"Двоен приход 5 мин", d:"×2 върху всичко",                c:3},
+  {k:"lvlall", n:"+1 ниво на всички",  d:"Всяка фирма качва ниво",         c:5},
+  {k:"perm",   n:"Постоянен +5%",      d:"Завинаги · може да се купи пак", c:10}
+];
+function shopBuy(k){
+  var it=null;for(var i=0;i<SHOP.length;i++)if(SHOP[i].k===k)it=SHOP[i];
+  if(!it||S.gems<it.c)return;
+  S.gems-=it.c;
+  if(k==="reroll")newQuest();
+  else if(k==="washall")cars.forEach(function(c){c.dirt=0;});
+  else if(k==="x2")x2Until=Date.now()+300000;
+  else if(k==="lvlall")fleets.forEach(function(f){f.lvl++;});
+  else if(k==="perm")gemBuff++;
+  sfx("buy");vibro(12);save();updCards();renderPanel();
+}
+
 /* ==================== камера ==================== */
 var cv=document.getElementById("cv"),ctx=cv.getContext("2d");
 var VW=0,VH=0,DPR=1;
@@ -703,9 +810,6 @@ cv.addEventListener("wheel",function(e){e.preventDefault();zoomAt(e.clientX,e.cl
 cv.addEventListener("contextmenu",function(e){e.preventDefault();});
 document.getElementById("zin").onclick=function(){zoomAt(VW/2,VH/2,1.5);};
 document.getElementById("zout").onclick=function(){zoomAt(VW/2,VH/2,0.66);};
-document.getElementById("zreset").onclick=function(){
-  askNewGame();
-};
 function askNewGame(){
   document.getElementById("mT").textContent="Нова игра?";
   document.getElementById("mP").innerHTML="Целият прогрес — пари, коли, градове — се изтрива безвъзвратно.";
@@ -758,7 +862,8 @@ function tap(sx,sy){
     }
   }
   for(var i=0;i<crates.length;i++)if(Math.hypot(crates[i].x-w.x,crates[i].y-w.y)<70){
-    S.gems++;questProgress("gems",1);burst(crates[i].x,crates[i].y,"#4FC3F7",10);say(crates[i].x,crates[i].y,"+1 💎");
+    S.gems++;ST.gemsF++;questProgress("gems",1);sfx("gem");vibro(15);
+    burst(crates[i].x,crates[i].y,"#4FC3F7",10);say(crates[i].x,crates[i].y,"+1 💎");
     crates.splice(i,1);save();return;}
   for(var z=0;z<ZONES.length;z++){var Z=ZONES[z];if(Z.open)continue;
     if(w.y>=Z.y&&w.y<Z.y+Z.h){
@@ -783,7 +888,7 @@ function update(dt){
     S.money-=tax;
     popupSmall("Данъци и сметки −"+money(tax));
   }
-  if(Date.now()>rushUntil&&npcs.length>CITY.npc) npcs.length=CITY.npc;
+  if(!evOn()&&npcs.length>CITY.npc) npcs.length=CITY.npc;
   if(np===0){
     camT.x+=vel.x*dt;camT.y+=vel.y*dt;
     var f=Math.pow(0.0016,dt);vel.x*=f;vel.y*=f;
@@ -792,25 +897,24 @@ function update(dt){
   var k=1-Math.pow(0.0008,dt);
   cam.x=lerp(cam.x,camT.x,k);cam.y=lerp(cam.y,camT.y,k);cam.s*=Math.pow(camT.s/cam.s,k);
 
-  var rush=Date.now()<rushUntil;
+  var evx=evOn(),rush=!!evx;
   spawnT-=dt;
   if(spawnT<=0){spawnClient();
-    spawnT=Math.max(0.2,(1.6-0.1*fleets.length-0.15*ZONES.filter(function(z){return z.open;}).length)/(rush?2.2:1));}
+    spawnT=Math.max(0.2,(1.6-0.1*fleets.length-0.15*ZONES.filter(function(z){return z.open;}).length)
+      /(evx?(evx.k==="fest"?3:2.2):1));}
   crateT-=dt;
   if(crateT<=0){crateT=rnd(40,70);if(crates.length<3){var n=randomOpenNode();crates.push({x:nodes[n].x,y:nodes[n].y,t:45,sp:Math.random()*6});}}
   for(var i=crates.length-1;i>=0;i--){crates[i].t-=dt;crates[i].sp+=dt*2;if(crates[i].t<=0)crates.splice(i,1);}
 
   eventT-=dt;
-  if(eventT<=0){
-    eventT=rnd(75,140);
-    if(Math.random()<0.5){ rushUntil=Date.now()+45000; spawnNpcs(Math.round(CITY.npc*0.5)); popupSmall("Час пик! Двойни тарифи, но и задръствания"); }
-    else makeAccident();
-  }
+  if(eventT<=0){ eventT=rnd(70,130); if(Math.random()<0.58)startEvent(); else makeAccident(); }
   for(var a=accidents.length-1;a>=0;a--){
     accidents[a].t-=dt;
     if(accidents[a].t<=0){ delete blocked[accidents[a].k]; accidents.splice(a,1); }
   }
   EL.rush.classList.toggle("hidden",!rush);
+  if(evx){setTxt(EL.rush,evx.n);
+    if(EL.rush._bg!==evx.c){EL.rush._bg=evx.c;EL.rush.style.background=evx.c;}}
 
   for(var c=clients.length-1;c>=0;c--){var cl=clients[c];cl.bob+=dt*3;
     if(!cl.taken){cl.wait+=dt;
@@ -845,6 +949,10 @@ function update(dt){
     popup("Нова фирма",nf.name+" вече кара за теб.<span class='big'>"+nf.name+"</span>");}
   hist.push({t:performance.now(),m:S.best});
   while(hist.length>2&&hist[0].t<performance.now()-20000)hist.shift();
+  if(!TUT.zone)for(var tz=1;tz<ZONES.length;tz++)
+    if(!ZONES[tz].open&&S.money>=ZONES[tz].cost){
+      TUT.zone=1;popupSmall("Можеш да отключиш нов район — докосни го на картата");save();break;}
+  achCheck();
   saveT-=dt;if(saveT<=0){saveT=6;save();}
   setTxt(EL.money,money(S.money));
   setTxt(EL.gems," "+S.gems);
@@ -857,6 +965,23 @@ function update(dt){
   setCls(EL.turbo,(S.gems<1&&Date.now()>turboUntil)?"off":"");
   setTxt(EL.turbo,Date.now()<turboUntil?("⚡ "+Math.ceil((turboUntil-Date.now())/1000)+"с"):"⚡ Турбо · 1 💎");
   cardT-=dt;if(cardT<=0){cardT=0.2;updCards();}   // картите не се менят 60 пъти в секунда
+}
+/* ==================== събития ==================== */
+/* Часът пик беше единственото събитие; сега е един от четири вида,
+   всеки с различен множител и различен ефект върху движението. */
+var EVENTS=[
+  {k:"rush",  n:"Час пик ×2",    m:2,   d:45000,c:"#E0563F",s:"Час пик! Двойни тарифи, но и задръствания"},
+  {k:"fest",  n:"Фестивал ×2.5", m:2.5, d:55000,c:"#B06BE0",s:"Фестивал в центъра! Тълпи чакат такси"},
+  {k:"strike",n:"Стачка ×1.8",   m:1.8, d:50000,c:"#2E9BD6",s:"Конкуренцията стачкува! Градът е твой"},
+  {k:"rain",  n:"Дъжд ×1.6",     m:1.6, d:60000,c:"#4A7FA8",s:"Дъжд! Всички търсят такси, но пътят е хлъзгав"}
+];
+var ev=null,evUntil=0;
+function evOn(){return Date.now()<evUntil?ev:null;}
+function evMult(){var e=evOn();return e?e.m:1;}
+function startEvent(){
+  ev=pick(EVENTS);evUntil=Date.now()+ev.d;
+  if(ev.k==="rush"||ev.k==="fest")spawnNpcs(Math.round(CITY.npc*0.5));
+  popupSmall(ev.s);sfx("quest");
 }
 function makeAccident(){
   var e=pick(edges);
@@ -880,6 +1005,7 @@ function makeAccident(){
       break;
     }
   });
+  ST.acc++;sfx("horn");vibro([25,40,25]);
   popupSmall("Катастрофа! Ремонт −"+money(rep));
 }
 function trafficFactor(v){
@@ -926,7 +1052,7 @@ function drive(c,dt,broke){
     c.washT-=dt;
     if(c.washT<=0){
       var fee=Math.min(S.money,washFee(fl));S.money-=fee;
-      c.dirt=0;releaseBay(c);
+      c.dirt=0;releaseBay(c);ST.wash++;
       parts.push({txt:"−"+money(fee),red:true,x:c.x,y:c.y,z:30,vx:0,vy:0,vz:28,r:0,vr:0,t:1.3});
       burst(c.x,c.y,"#7FD8F7",8);say(c.x,c.y,"Като нова!");
       c.state="idle";c.wait=0.3;c.idleT=0;c.path=[wash?wash.node:0];c.seg=0;c.t=0;
@@ -974,7 +1100,8 @@ function drive(c,dt,broke){
   if(!B){arrive(c);return;}
   var len=Math.hypot(B.x-A.x,B.y-A.y),rest=(1-c.t)*len;
   var sp=(112+fl.lvl*3)*(Date.now()<turboUntil?2.2:1)
-        *(isHwEdge(c.path[c.seg],c.path[c.seg+1])?1.5:1)*(broke?0.9:1);
+        *(isHwEdge(c.path[c.seg],c.path[c.seg+1])?1.5:1)*(broke?0.9:1)
+        *(evOn()&&ev.k==="rain"?0.78:1);          // дъждът бави, но вдига тарифата
   sp*=trafficFactor(c);
   if(atRedLight(A,B,rest)){sp=0;c.brake=0.4;}
   if(sp<=0.02){c.brake=Math.max(c.brake,0.2);c.stuck=(c.stuck||0)+dt;return;}
@@ -1031,12 +1158,14 @@ function arrive(c){
   }else{
     var fl=fleets[c.f],vip=c.client&&c.client.vip;
     c.dirt=Math.min(1,(c.dirt||0)+0.09+c.dist/16000);
-    var mult=(vip?3:1)*(1+0.3*night)*(Date.now()<rushUntil?2:1)*(1-0.30*c.dirt);
+    var mult=(vip?3:1)*(1+0.3*night)*evMult()*(1-0.30*c.dirt);
     var pay=perKm(fl)*(c.dist/70)*mult;
-    S.money+=pay;S.best+=pay;
+    S.money+=pay;S.best+=pay;PR.tot+=pay;
     questProgress("rides",1);questProgress("earn",pay);
+    ST.rides++;ST.km+=c.dist/70;if(vip)ST.vip++;if(night>0.5)ST.night++;
+    sfx(vip?"gem":"cash");if(vip)vibro(18);
     if(night>0.5)questProgress("night",1);
-    if(Date.now()<rushUntil)questProgress("rush",1);
+    if(evOn())questProgress("rush",1);
     if(quest&&quest.type==="spot"&&c.client&&c.client.spot===quest.spot)questProgress("spot",1);
     if(quest&&quest.type==="long"&&c.dist>=quest.dist)questProgress("long",1);
     parts.push({txt:money(pay),x:c.x,y:c.y,z:30,vx:0,vy:0,vz:34,r:0,vr:0,t:1.5});
@@ -1046,6 +1175,65 @@ function arrive(c){
     var i=clients.indexOf(c.client);if(i>=0)clients.splice(i,1);
     c.client=null;c.state="idle";c.wait=rnd(.2,.8);c.path=[last];c.seg=0;
   }
+}
+/* ==================== дневна награда ==================== */
+function dayKey(t){var d=new Date(t);return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();}
+function checkDaily(){
+  var k=dayKey(Date.now());
+  if(DY.last===k)return;
+  DY.streak=(DY.last===dayKey(Date.now()-86400000))?DY.streak+1:1;
+  DY.last=k;
+  var gm=Math.min(5,1+Math.floor(DY.streak/2));
+  var cash=Math.round(Math.max(800,rate()*150)*Math.min(7,DY.streak));
+  S.gems+=gm;S.money+=cash;
+  popup("Здравей отново!","Ден "+DY.streak+" поред."+
+    "<span class='big'>"+money(cash)+" + "+gm+" 💎</span>"+
+    (DY.streak<7?"Утре наградата е по-голяма.":"Максимална серия!"));
+  popupSmall("Ден "+DY.streak+": +"+money(cash)+" +"+gm+" 💎");
+  sfx("big");vibro([15,60,15]);save();
+}
+
+/* ==================== звук ==================== */
+/* Всичко се синтезира през WebAudio — нито един байт активи, което пази
+   еднофайловата структура. Контекстът се създава лениво, защото браузърите
+   не позволяват звук преди първо докосване. */
+var AC=null,lastCash=0;
+function ac(){
+  if(AC===null){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=false;}}
+  if(AC&&AC.state==="suspended"){try{AC.resume();}catch(e){}}
+  return AC||null;
+}
+function beep(freq,dur,type,vol,slide){
+  var c=ac();if(!c)return;
+  try{
+    var o=c.createOscillator(),g=c.createGain(),t=c.currentTime;
+    o.type=type||"square";o.frequency.setValueAtTime(freq,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,slide),t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(vol||0.10,t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0008,t+dur);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur+0.02);
+  }catch(e){}
+}
+function sfx(name){
+  if(!SET.sound)return;
+  if(name==="cash"){
+    var now=Date.now();if(now-lastCash<130)return;lastCash=now;   // плащанията са чести
+    beep(880,0.08,"square",0.07);setTimeout(function(){beep(1320,0.10,"square",0.06);},65);
+  }
+  else if(name==="gem"){beep(1180,0.07,"sine",0.09);setTimeout(function(){beep(1780,0.13,"sine",0.08);},75);}
+  else if(name==="quest"){beep(659,0.09,"triangle",0.09);setTimeout(function(){beep(988,0.09,"triangle",0.09);},90);
+    setTimeout(function(){beep(1319,0.17,"triangle",0.08);},180);}
+  else if(name==="horn"){beep(310,0.26,"sawtooth",0.06,215);}
+  else if(name==="tap"){beep(520,0.04,"square",0.045);}
+  else if(name==="buy"){beep(440,0.055,"square",0.06);setTimeout(function(){beep(660,0.085,"square",0.055);},50);}
+  else if(name==="level"){beep(523,0.07,"triangle",0.08);setTimeout(function(){beep(784,0.13,"triangle",0.08);},72);}
+  else if(name==="big"){beep(392,0.10,"triangle",0.09);setTimeout(function(){beep(587,0.10,"triangle",0.09);},95);
+    setTimeout(function(){beep(784,0.10,"triangle",0.09);},190);setTimeout(function(){beep(1047,0.24,"triangle",0.08);},285);}
+}
+function vibro(ms){
+  if(!SET.vibro||!navigator.vibrate)return;
+  try{navigator.vibrate(ms);}catch(e){}
 }
 function burst(x,y,col,n){for(var i=0;i<n;i++)parts.push({x:x,y:y,z:16,col:col,
   vx:rnd(-45,45),vy:rnd(-45,45),vz:rnd(90,190),r:rnd(0,6),vr:rnd(-7,7),t:rnd(1,1.8)});}
@@ -1716,6 +1904,127 @@ function updCards(){
     setCls(R.rest,fl.rest?"rest on":"rest");
   }
 }
+/* ==================== панел ==================== */
+var PTAB="stat";
+function row(lb,vl,sub){
+  return '<div class="prow"><div class="lb">'+lb+(sub?'<small>'+sub+'</small>':'')+
+         '</div><div class="vl">'+vl+'</div></div>';
+}
+function statHTML(){
+  var h='<div class="phead">Тази империя</div>';
+  h+=row("Пари",money(S.money));
+  h+=row("Изкарано от курсове",money(S.best));
+  h+=row("Курсове",ST.rides);
+  h+=row("Пробег",Math.round(ST.km)+" км");
+  h+=row("VIP курсове",ST.vip);
+  h+=row("Нощни курсове",ST.night);
+  h+=row("Изпълнени мисии",ST.quests);
+  h+=row("Катастрофи",ST.acc);
+  h+=row("Миения",ST.wash);
+  h+=row("Град",CITY.name);
+  h+='<div class="phead">Множители на прихода</div>';
+  h+=row("Глобален бонус","×"+(Math.round(globalMult()*100)/100));
+  h+=row("Престиж","×"+(Math.round(presMult()*100)/100));
+  h+=row("Постижения","×"+(Math.round(achMult()*100)/100));
+  h+=row("Магазин","×"+(Math.round(gemMult()*100)/100));
+  if(Date.now()<x2Until)h+=row("Двоен приход","×2",Math.ceil((x2Until-Date.now())/1000)+" сек");
+  h+='<div class="phead">Продай империята</div>';
+  var g=presAvail();
+  h+='<div class="prow"><div class="lb">Престижни точки<small>Всяка точка дава +25% приход завинаги</small></div>'+
+     '<div class="vl">'+PR.pp+(g?' <span style="color:#1FA871">+'+g+'</span>':'')+'</div></div>';
+  h+=row("Изкарано за всички рестарти",money(PR.tot));
+  h+=row("Рестарти",PR.runs);
+  h+='<button class="pbtn'+(g?'':' cant')+'" data-act="pres" style="margin-top:10px">'+
+     (g?'Продай за +'+g+' точки':'Изкарай '+money(Math.pow(presPts()+1,2)*250000)+' за следваща точка')+'</button>';
+  return h;
+}
+function achHTML(){
+  var h='<div class="phead">Отключени '+Object.keys(ACH).length+' от '+ACHS.length+'</div>';
+  for(var i=0;i<ACHS.length;i++){
+    var a=ACHS[i],on=!!ACH[a.k];
+    h+='<div class="prow"><div class="lb" style="'+(on?'':'opacity:.5')+'">'+
+       (on?'✓ ':'')+a.n+'<small>'+a.d+'</small></div>'+
+       '<div class="vl" style="color:'+(on?'#1FA871':'#7C8399')+'">+'+Math.round(a.b*100)+'%</div></div>';
+  }
+  return h;
+}
+function shopHTML(){
+  var h='<div class="phead">Имаш '+S.gems+' 💎</div>';
+  for(var i=0;i<SHOP.length;i++){
+    var it=SHOP[i],can=S.gems>=it.c;
+    h+='<div class="prow"><div class="lb">'+it.n+'<small>'+it.d+'</small></div>'+
+       '<button class="pbtn'+(can?'':' cant')+'" data-buy="'+it.k+'" style="width:auto;min-width:76px">'+
+       it.c+' 💎</button></div>';
+  }
+  if(gemBuff)h+='<div class="phead">Купен постоянен бонус: ×'+(Math.round(gemMult()*100)/100)+'</div>';
+  return h;
+}
+function setHTML(){
+  return '<div class="phead">Звук и усещане</div>'+
+    '<div class="prow"><div class="lb">Звук<small>Синтезиран, без файлове</small></div>'+
+      '<button class="tgl'+(SET.sound?' on':'')+'" data-tgl="sound"></button></div>'+
+    '<div class="prow"><div class="lb">Вибрация<small>Само на телефон</small></div>'+
+      '<button class="tgl'+(SET.vibro?' on':'')+'" data-tgl="vibro"></button></div>'+
+    '<div class="phead">Опасна зона</div>'+
+    '<div class="prow"><div class="lb">Нова игра<small>Изтрива всичко, включително престижа</small></div></div>'+
+    '<button class="pbtn danger" data-act="reset">Изтрий целия прогрес</button>';
+}
+function renderPanel(){
+  var b=document.getElementById("pbody");
+  [].forEach.call(document.querySelectorAll("#ptabs button"),function(x){
+    x.className=x.getAttribute("data-tab")===PTAB?"on":"";});
+  b.innerHTML=PTAB==="stat"?statHTML():PTAB==="ach"?achHTML():PTAB==="shop"?shopHTML():setHTML();
+  [].forEach.call(b.querySelectorAll("[data-buy]"),function(x){
+    x.onclick=function(){shopBuy(x.getAttribute("data-buy"));};});
+  [].forEach.call(b.querySelectorAll("[data-tgl]"),function(x){
+    x.onclick=function(){var k=x.getAttribute("data-tgl");SET[k]=SET[k]?0:1;
+      if(k==="sound"&&SET.sound)sfx("tap");save();renderPanel();};});
+  [].forEach.call(b.querySelectorAll("[data-act]"),function(x){
+    x.onclick=function(){var a=x.getAttribute("data-act");
+      if(a==="pres")askPrestige(); else if(a==="reset")askNewGame();};});
+}
+function openPanel(){document.getElementById("panel").classList.remove("hidden");renderPanel();sfx("tap");}
+function closePanel(){document.getElementById("panel").classList.add("hidden");}
+document.getElementById("menu").onclick=openPanel;
+document.getElementById("pclose").onclick=closePanel;
+document.getElementById("panel").onclick=function(e){if(e.target.id==="panel")closePanel();};
+[].forEach.call(document.querySelectorAll("#ptabs button"),function(x){
+  x.onclick=function(){PTAB=x.getAttribute("data-tab");sfx("tap");renderPanel();};});
+
+/* ---- престиж ---- */
+function askPrestige(){
+  var g=presAvail();if(g<1)return;
+  document.getElementById("mT").textContent="Да продадеш ли империята?";
+  document.getElementById("mP").innerHTML=
+    "Връщаш се в първия град с една фирма. Пазиш диамантите, постиженията и статистиката."+
+    "<span class='big'>+"+g+" точки</span>Всяка точка дава +25% приход завинаги.";
+  var ok=document.getElementById("mB"),no=document.getElementById("mC");
+  ok.textContent="Продай";ok.disabled=false;no.classList.remove("hidden");
+  document.getElementById("modal").classList.remove("hidden");
+  ok.onclick=function(){
+    PR.pp+=g;PR.runs++;
+    S.money=900;S.best=0;fleets=[];cars=[];cityIdx=0;
+    loadCity(null);addFleet(0);syncCars();buildCards();newQuest();
+    achCheck();save();
+    document.getElementById("modal").classList.add("hidden");no.classList.add("hidden");
+    closePanel();
+    popup("Нова империя","Започваш отначало, но по-силен."+
+      "<span class='big'>×"+(Math.round(presMult()*100)/100)+"</span>приход от престиж");
+    sfx("big");vibro([20,70,20]);
+  };
+  no.onclick=function(){document.getElementById("modal").classList.add("hidden");
+    no.classList.add("hidden");ok.onclick=null;ok.textContent="Продължи";};
+}
+
+/* ---- обучение ---- */
+function tutorial(){
+  if(TUT.intro)return;
+  TUT.intro=1;save();
+  popup("Добре дошъл в града","Колите ти вече возят сами — печелиш, докато гледаш."+
+    "<span class='big'>Купи коли</span>На 4 коли във фирма тарифата се удвоява. "+
+    "Докосни заключен район на картата, за да го отвориш.");
+}
+
 document.getElementById("turbo").onclick=function(){
   if(Date.now()<turboUntil||S.gems<1)return;S.gems--;turboUntil=Date.now()+30000;save();};
 function popup(t,p){
@@ -1803,13 +2112,15 @@ function save(){if(!store||resetSave)return;
       for(var k=0;k<cars.length;k++)if(cars[k].f===i){ds+=cars[k].dirt||0;dn++;}
       return{i:f.idx,l:f.lvl,c:f.cars,r:f.rest?1:0,d:dn?Math.round(ds/dn*100)/100:0};
     }),
-    zn:ZONES.map(function(z){return z.open?1:0;}),r:Math.max(0,rate()-expenseRate()),t:Date.now()}));}catch(e){}}
+    zn:ZONES.map(function(z){return z.open?1:0;}),r:Math.max(0,rate()-expenseRate()),t:Date.now(),
+    se:SET,st:ST,pr:PR,dy:DY,tu:TUT,gb:gemBuff,ac:Object.keys(ACH)}));}catch(e){}}
 var hiddenAt=0;
 document.addEventListener("visibilitychange",function(){
   if(document.hidden){save();hiddenAt=Date.now();}
   else if(hiddenAt){
     var away=Math.min((Date.now()-hiddenAt)/1000,4*3600);
     hiddenAt=0;
+    checkDaily();
     if(away>60){
       var off=Math.max(0,rate()-expenseRate())*away*0.5;
       if(off>1){S.money+=off;
@@ -1862,6 +2173,13 @@ genCity();buildZones();resize(true);spawnNpcs(CITY.npc);
 function boot(d){
   if(d){
     S.money=d.m||0;S.best=d.b||0;S.gems=d.g||0;clock=d.ck||clock;
+    if(d.se){SET.sound=d.se.sound?1:0;SET.vibro=d.se.vibro?1:0;}
+    if(d.st)for(var sk in ST)if(typeof d.st[sk]==="number")ST[sk]=d.st[sk];
+    if(d.pr){PR.pp=d.pr.pp||0;PR.tot=d.pr.tot||0;PR.runs=d.pr.runs||0;}
+    if(d.dy){DY.last=d.dy.last||0;DY.streak=d.dy.streak||0;}
+    if(d.tu)TUT=d.tu;
+    gemBuff=d.gb||0;
+    (d.ac||[]).forEach(function(k){ACH[k]=1;});
     if(typeof d.ci==="number"&&CITIES[d.ci]){cityIdx=d.ci;CITY=CITIES[cityIdx];genCity();buildZones();resize(true);npcs=[];spawnNpcs(CITY.npc);
       camT.x=cam.x=DOWNS[0].x;camT.y=cam.y=DOWNS[0].y;clampT();
       document.getElementById("cityTag").firstChild.nodeValue=CITY.name;}
@@ -1873,11 +2191,14 @@ function boot(d){
   }
   lastDay=Math.floor(clock/DAY);
   if(!fleets.length)addFleet(0);
+  if(!PR.tot)PR.tot=S.best;          // записи отпреди престижа
   syncCars();
   cars.forEach(function(c){var f=fleets[c.f];if(f&&f._d)c.dirt=f._d;});
   fleets.forEach(function(f){delete f._d;});
   buildCards();newQuest();
   for(var i=0;i<6;i++)spawnClient();
+  if(!d)DY.last=dayKey(Date.now());   // ден 1 идва утре, днес говори обучението
+  tutorial();checkDaily();achCheck();
   var last=performance.now(),errN=0;
   // кадърът се презаписва пръв: грешка в update/draw не спира играта завинаги
   (function loop(now){

@@ -28,3 +28,25 @@
 # Иконите са неизменни в рамките на един билд.
 /*.png
   Cache-Control: public, max-age=604800
+
+# „Слънчева Ферма" живее в /farm и има собствен service worker и манифест.
+/farm/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/farm/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/farm/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: text/javascript; charset=utf-8
+
+/farm/manifest.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8
+  Cache-Control: public, max-age=3600
+
+# Кодът на играта се обновява с всеки деплой, затова не се кешира дълго.
+/farm/*.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/farm/style.css
+  Cache-Control: public, max-age=0, must-revalidate

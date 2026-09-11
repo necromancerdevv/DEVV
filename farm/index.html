@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#8bc34a">
+<meta name="description" content="Слънчева Ферма — българска идле игра за ферма: сей, отглеждай, готви и изпълнявай поръчки.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Слънчева Ферма</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+  <canvas id="scene"></canvas>
+
+  <header id="hud">
+    <div class="hud-row">
+      <button class="chip chip-lvl" id="chipLevel" type="button">
+        <span class="lvl-badge" id="lvlNum">1</span>
+        <span class="lvl-bar"><i id="lvlFill"></i></span>
+      </button>
+      <div class="chip chip-coin"><i class="ico" data-icon="coin"></i><b id="coinNum">0</b></div>
+      <div class="chip chip-gem"><i class="ico" data-icon="gem"></i><b id="gemNum">0</b></div>
+      <button class="chip chip-barn" id="chipBarn" type="button"><i class="ico" data-icon="barn"></i><b id="barnNum">0/0</b></button>
+    </div>
+  </header>
+
+  <div id="questCard" class="quest-card hidden">
+    <div class="quest-top">
+      <span class="quest-label">Задача</span>
+      <button class="quest-fold" id="questFold" type="button" aria-label="Скрий">▾</button>
+    </div>
+    <div class="quest-body">
+      <div class="quest-title" id="questTitle"></div>
+      <div class="quest-bar"><i id="questFill"></i></div>
+      <div class="quest-foot">
+        <span id="questProg"></span>
+        <span class="quest-reward" id="questReward"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="hint" class="hint hidden"></div>
+
+  <nav id="dock">
+    <button class="dock-btn" data-panel="shop" type="button"><i class="ico" data-icon="shop"></i><span>Магазин</span></button>
+    <button class="dock-btn" data-panel="barn" type="button"><i class="ico" data-icon="barn"></i><span>Хамбар</span></button>
+    <button class="dock-btn dock-main" data-panel="orders" type="button"><i class="ico" data-icon="board"></i><span>Поръчки</span><em class="badge hidden" id="ordersBadge">0</em></button>
+    <button class="dock-btn" data-panel="quests" type="button"><i class="ico" data-icon="quest"></i><span>Задачи</span></button>
+    <button class="dock-btn" data-panel="menu" type="button"><i class="ico" data-icon="menu"></i><span>Меню</span></button>
+  </nav>
+
+  <div id="scrim" class="scrim hidden"></div>
+
+  <section id="sheet" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-grip"></div>
+    <header class="sheet-head">
+      <h2 id="sheetTitle">—</h2>
+      <button class="sheet-close" id="sheetClose" type="button" aria-label="Затвори">✕</button>
+    </header>
+    <div class="sheet-body" id="sheetBody"></div>
+  </section>
+
+  <div id="toasts" class="toasts"></div>
+  <div id="floats" class="floats"></div>
+</div>
+
+<script src="icons.js"></script>
+<script src="data.js"></script>
+<script src="state.js"></script>
+<script src="render.js"></script>
+<script src="ui.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

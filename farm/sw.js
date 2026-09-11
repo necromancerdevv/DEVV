@@ -1,5 +1,5 @@
 /* Слънчева Ферма — service worker за офлайн работа. */
-var CACHE = 'sunfarm-v1';
+var CACHE = 'sunfarm-v2';   // вдига се при всяка промяна на файловете
 var FILES = [
   './',
   'index.html',

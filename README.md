@@ -39,7 +39,7 @@ Idle игра на български: управляваш таксиметро
 Архивът трябва да съдържа файловете в корена си, без обгръщаща папка:
 
 ```
-zip -r taxi-empire.zip index.html sw.js manifest.webmanifest icon-*.png _headers netlify.toml
+zip -r ferma-i-taksi.zip index.html sw.js manifest.webmanifest icon-*.png _headers netlify.toml farm
 ```
 
 ### Вариант 3 — Netlify CLI

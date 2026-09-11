@@ -1562,13 +1562,202 @@
     return null;
   }
 
+  // --- Ден и нощ ---------------------------------------------------------
+  // Небето следва истинския час на играча. Ключовите моменти се преливат
+  // един в друг; наслагването е един полупрозрачен слой върху цялата сцена,
+  // за да не се налага прерисуване на кешираните спрайтове.
+  var SKY = [
+    { h: 0,    top: '#131d36', bot: '#20304f', wash: [18, 30, 58], a: 0.62 },
+    { h: 5,    top: '#1e3350', bot: '#3c5170', wash: [26, 44, 74], a: 0.56 },
+    { h: 6.5,  top: '#f3b07a', bot: '#ffd9a8', wash: [242, 140, 86], a: 0.34 },
+    { h: 8.5,  top: '#cfeaf7', bot: '#e6f2d9', wash: [255, 255, 255], a: 0 },
+    { h: 16.5, top: '#cfeaf7', bot: '#e6f2d9', wash: [255, 255, 255], a: 0 },
+    { h: 18.5, top: '#ffc98a', bot: '#ffe3b4', wash: [238, 132, 52], a: 0.4 },
+    { h: 20,   top: '#8f6f9e', bot: '#d09a94', wash: [140, 70, 120], a: 0.48 },
+    { h: 21.5, top: '#16233f', bot: '#2b3d61', wash: [18, 30, 58], a: 0.6 },
+    { h: 24,   top: '#131d36', bot: '#20304f', wash: [18, 30, 58], a: 0.62 }
+  ];
+
+  function hourNow() {
+    var d = new Date();
+    return d.getHours() + d.getMinutes() / 60;
+  }
+
+  function mixHex(a, b, t) {
+    var na = parseInt(a.slice(1), 16), nb = parseInt(b.slice(1), 16);
+    var r = Math.round(((na >> 16) & 255) + (((nb >> 16) & 255) - ((na >> 16) & 255)) * t);
+    var g = Math.round(((na >> 8) & 255) + (((nb >> 8) & 255) - ((na >> 8) & 255)) * t);
+    var bl = Math.round((na & 255) + ((nb & 255) - (na & 255)) * t);
+    return 'rgb(' + r + ',' + g + ',' + bl + ')';
+  }
+
+  function skyNow() {
+    var h = hourNow();
+    var i = 0;
+    while (i < SKY.length - 2 && SKY[i + 1].h <= h) i++;
+    var a = SKY[i], b = SKY[i + 1];
+    var t = (h - a.h) / (b.h - a.h);
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    var wash = [
+      a.wash[0] + (b.wash[0] - a.wash[0]) * t,
+      a.wash[1] + (b.wash[1] - a.wash[1]) * t,
+      a.wash[2] + (b.wash[2] - a.wash[2]) * t
+    ];
+    // колко е „нощ" — по това се палят прозорците и светулките
+    var night = h < 5.5 ? 1 : h < 7 ? (7 - h) / 1.5 : h < 18.5 ? 0 : h < 20.5 ? (h - 18.5) / 2 : 1;
+    return {
+      top: mixHex(a.top, b.top, t),
+      bot: mixHex(a.bot, b.bot, t),
+      wash: 'rgb(' + Math.round(wash[0]) + ',' + Math.round(wash[1]) + ',' + Math.round(wash[2]) + ')',
+      alpha: a.a + (b.a - a.a) * t,
+      night: night
+    };
+  }
+
+  // Светнати прозорци: по няколко топли петна на сграда, спрямо основата ѝ.
+  var LIGHTS = {
+    feedmill: [[-32, 3]],
+    mill: [[-21, -33]],
+    bakery: [[25, 6], [-27, 5]],
+    dairy: [[22, 7], [52, -8]],
+    jamshop: [[29, 5]],
+    loom: [[36, -8]],
+    barn: [[38, 5]],
+    house: [[-47, -5], [55, -9]]
+  };
+
+  function drawLight(x, y, z, strength) {
+    var r = 17 * z;
+    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,206,120,' + (0.5 * strength) + ')');
+    g.addColorStop(0.45, 'rgba(255,186,84,' + (0.18 * strength) + ')');
+    g.addColorStop(1, 'rgba(255,170,60,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ell(x, y, 2.6 * z, 2.1 * z, 'rgba(255,232,170,' + (0.55 * strength) + ')');
+  }
+
+  function drawNightLights(night, t) {
+    var S0 = S(), z = cam.z;
+    D.STRUCTURES.forEach(function (st) {
+      var owned = st.kind === 'building' ? S0.buildings[st.id].owned
+        : st.kind === 'pen' ? S0.pens[st.id].owned : true;
+      if (!owned) return;
+      var spots = LIGHTS[st.id];
+      if (!spots) return;
+      var p = worldToScreen(st.x + 1, st.y + 1);
+      for (var i = 0; i < spots.length; i++) {
+        var flicker = 0.9 + Math.sin(t / 900 + i * 2 + st.x) * 0.1;
+        drawLight(p.x + spots[i][0] * z, p.y + spots[i][1] * z, z, night * flicker);
+      }
+    });
+  }
+
+  // Светулки над ливадата
+  function drawFireflies(night, t) {
+    var z = cam.z;
+    for (var i = 0; i < 16; i++) {
+      var bx = hash(i * 13 + 1, 7) * (D.WORLD.w + 6) - 3;
+      var by = hash(i * 7 + 3, 11) * (D.WORLD.h + 6) - 3;
+      var drift = Math.sin(t / 2600 + i) * 0.5;
+      var p = worldToScreen(bx + drift, by + Math.cos(t / 3100 + i * 2) * 0.4);
+      var lift = 16 + Math.sin(t / 700 + i * 3) * 8;
+      var pulse = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t / 600 + i * 1.7));
+      ctx.save();
+      ctx.globalAlpha = night * pulse;
+      ell(p.x, p.y - lift * z, 3.4 * z, 3.4 * z, 'rgba(200,255,140,.35)');
+      ell(p.x, p.y - lift * z, 1.4 * z, 1.4 * z, '#eaffb0');
+      ctx.restore();
+    }
+  }
+
+  // --- Летящи предмети и прашинки ---------------------------------------
+  var flyers = [], puffs = [];
+
+  // Праща иконата на прибраното към лентата горе — малка, но ясна награда.
+  function fly(iconId, x, y, targetId) {
+    var el = document.getElementById(targetId);
+    var tx = viewW / 2, ty = 40;
+    if (el) {
+      var r = el.getBoundingClientRect();
+      tx = r.left + r.width / 2;
+      ty = r.top + r.height / 2;
+    }
+    flyers.push({
+      icon: iconId, x0: x, y0: y, x1: tx, y1: ty,
+      cx: (x + tx) / 2 + (x - tx) * 0.12, cy: Math.min(y, ty) - 70 - Math.random() * 40,
+      born: performance.now(), life: 620 + Math.random() * 120
+    });
+    if (flyers.length > 24) flyers.shift();
+  }
+
+  function puff(x, y, color) {
+    for (var i = 0; i < 7; i++) {
+      var a = Math.PI * (0.15 + Math.random() * 0.7) * -1;
+      puffs.push({
+        x: x, y: y,
+        vx: Math.cos(a) * (0.5 + Math.random()) * (Math.random() < 0.5 ? -1 : 1),
+        vy: Math.sin(a) * (0.6 + Math.random() * 0.8),
+        r: (2 + Math.random() * 2.5),
+        color: color || '#e8d9b0',
+        born: performance.now(), life: 420 + Math.random() * 260
+      });
+    }
+    if (puffs.length > 80) puffs.splice(0, puffs.length - 80);
+  }
+
+  function drawEffects(t) {
+    var now = performance.now(), z = cam.z;
+    for (var i = puffs.length - 1; i >= 0; i--) {
+      var q = puffs[i];
+      var k = (now - q.born) / q.life;
+      if (k >= 1) { puffs.splice(i, 1); continue; }
+      ctx.save();
+      ctx.globalAlpha = (1 - k) * 0.85;
+      var px = q.x + q.vx * k * 52 * z, py = q.y + q.vy * k * 44 * z + k * k * 30 * z;
+      var pr = q.r * Math.max(0.9, z) * (1 - k * 0.35);
+      ell(px, py, pr + 1, pr + 1, 'rgba(60,42,20,.35)');
+      ell(px, py, pr, pr, q.color);
+      ctx.restore();
+    }
+    for (var f = flyers.length - 1; f >= 0; f--) {
+      var fl = flyers[f];
+      var k2 = (now - fl.born) / fl.life;
+      if (k2 >= 1) { flyers.splice(f, 1); continue; }
+      var u = k2 * k2 * (3 - 2 * k2);           // плавно ускорение
+      var mx = (1 - u) * (1 - u) * fl.x0 + 2 * (1 - u) * u * fl.cx + u * u * fl.x1;
+      var my = (1 - u) * (1 - u) * fl.y0 + 2 * (1 - u) * u * fl.cy + u * u * fl.y1;
+      var size = (40 - 14 * u) * Math.max(0.85, Math.min(1.25, z));
+      // Иконата пътува в светло кръгче — иначе се губи в тревата.
+      var im = img(fl.icon);
+      ctx.save();
+      ctx.globalAlpha = k2 > 0.82 ? (1 - k2) / 0.18 : 1;
+      var r = size * 0.62;
+      var grad = ctx.createLinearGradient(mx, my - r, mx, my + r);
+      grad.addColorStop(0, '#fffdf6');
+      grad.addColorStop(1, '#f6e7c8');
+      ctx.beginPath();
+      ctx.arc(mx, my, r, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = '#ffd54a';
+      ctx.lineWidth = Math.max(1.5, size * 0.09);
+      ctx.stroke();
+      if (im.complete && im.naturalWidth) ctx.drawImage(im, mx - size / 2, my - size / 2, size, size);
+      ctx.restore();
+    }
+  }
+
   // --- Кадър -------------------------------------------------------------
   function frame() {
     var t = performance.now() - startedAt;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var day = skyNow();
     var sky = ctx.createLinearGradient(0, 0, 0, viewH);
-    sky.addColorStop(0, '#cfeaf7');
-    sky.addColorStop(1, '#e6f2d9');
+    sky.addColorStop(0, day.top);
+    sky.addColorStop(1, day.bot);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, viewW, viewH);
 
@@ -1608,6 +1797,25 @@
     });
     items.sort(function (a, b) { return a.d - b.d; });
     for (var i = 0; i < items.length; i++) items[i].f();
+
+    // Светлината на деня ляга върху готовата сцена.
+    if (day.alpha > 0.004) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = day.alpha;
+      ctx.fillStyle = day.wash;
+      ctx.fillRect(0, 0, viewW, viewH);
+      ctx.restore();
+    }
+    if (day.night > 0.05) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      drawNightLights(day.night, t);
+      drawFireflies(day.night, t);
+      ctx.restore();
+    }
+
+    drawEffects(t);
   }
 
   // --- Начало ------------------------------------------------------------
@@ -1637,6 +1845,8 @@
     init: init, resize: resize, frame: frame, pick: pick,
     panBy: panBy, zoomAt: zoomAt, focusOn: focusOn,
     worldToScreen: worldToScreen,
+    fly: fly, puff: puff,
+    hour: hourNow,
     cam: cam
   };
 })(window);

@@ -53,6 +53,30 @@
     setTimeout(function () { f.remove(); }, 1100);
   }
 
+  // Прибраното литва към хамбара горе, а лентата му подскача при пристигане.
+  function harvestFx(itemId, qty, x, y, soil) {
+    var Scene = global.GScene;
+    if (!Scene || !Scene.fly) return;
+    var n = Math.min(3, Math.max(1, qty || 1));
+    for (var i = 0; i < n; i++) {
+      (function (k) {
+        setTimeout(function () {
+          Scene.fly(itemId, x + (k - (n - 1) / 2) * 14, y - k * 6, 'chipBarn');
+        }, k * 90);
+      })(i);
+    }
+    if (soil) Scene.puff(x, y, soil);
+    clearTimeout(harvestFx._t);
+    harvestFx._t = setTimeout(function () { bump(el.chipBarn); }, 620 + (n - 1) * 90);
+  }
+
+  function bump(node) {
+    if (!node) return;
+    node.classList.remove('bump');
+    void node.offsetWidth;
+    node.classList.add('bump');
+  }
+
   function floatGain(data, x, y) {
     var parts = [];
     if (data.coins) parts.push('+' + fmt(data.coins) + ' монети');
@@ -687,7 +711,7 @@
         var crop = D.cropById(G.state.plots[obj.index].crop);
         var r = G.harvest(obj.index);
         if (r.ok) {
-          floatText('+1 ' + D.itemName(crop.item).toLowerCase(), sx, sy, 'gain');
+          harvestFx(crop.item, 1, sx, sy, '#8b5f38');
           global.GSfx && global.GSfx.play('pop');
           G.save(); syncHUD();
         } else toast(r.msg, 'bad');
@@ -707,7 +731,7 @@
         var an = G.penAnimalDef(pen);
         var cr = G.collectPen(pen);
         if (cr.ok) {
-          floatText('+' + cr.data.qty + ' ' + D.itemName(an.item).toLowerCase(), sx, sy, 'gain');
+          harvestFx(an.item, cr.data.qty, sx, sy, '#f3f1ea');
           global.GSfx && global.GSfx.play('pop');
           G.save(); syncHUD();
         } else toast(cr.msg, 'bad');
@@ -716,8 +740,8 @@
       if (G.state.buildings[obj.id].owned && G.buildingReady(obj.id)) {
         var res = G.collectCraft(obj.id);
         if (res.ok) {
-          var names = Object.keys(res.data.got).map(function (k) { return '+' + res.data.got[k] + ' ' + D.itemName(k).toLowerCase(); });
-          floatText(names.join(' '), sx, sy, 'gain');
+          var keys = Object.keys(res.data.got);
+          if (keys.length) harvestFx(keys[0], res.data.got[keys[0]], sx, sy, '#f2e3c6');
           global.GSfx && global.GSfx.play('pop');
           G.save(); syncHUD();
         } else toast(res.msg, 'bad');

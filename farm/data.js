@@ -174,7 +174,7 @@
     { kind: 'tree', x: 0,  y: 0 }, { kind: 'tree', x: 6, y: 0 }, { kind: 'tree', x: 13, y: 0 },
     { kind: 'tree', x: 0,  y: 5 }, { kind: 'tree', x: 13, y: 8 }, { kind: 'tree', x: 6, y: 11 },
     { kind: 'tree', x: 0,  y: 12 }, { kind: 'tree', x: 13, y: 12 },
-    { kind: 'pond', x: 12, y: 10 },
+    { kind: 'pond', x: 13, y: 11 },
     { kind: 'bush', x: 3,  y: 12 }, { kind: 'bush', x: 9, y: 12 }, { kind: 'bush', x: 14, y: 3 },
     { kind: 'bush', x: 0,  y: 8 },  { kind: 'bush', x: 7, y: 12 }
   ];

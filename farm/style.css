@@ -14,6 +14,9 @@
   --r: 16px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Мястото, което заема чужда значка долу (напр. „Powered by Netlify").
+     Изчислява се в main.js; 0, когато няма такава. */
+  --badge-gap: 0px;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -136,7 +139,7 @@ button.chip { cursor: pointer; font-family: inherit; }
 .hint {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--safe-bottom) + 92px);
+  bottom: calc(var(--safe-bottom) + 92px + var(--badge-gap));
   transform: translateX(-50%);
   max-width: min(420px, 88vw);
   background: rgba(40, 30, 18, .88);
@@ -153,7 +156,7 @@ button.chip { cursor: pointer; font-family: inherit; }
   position: absolute;
   left: 0; right: 0;
   bottom: 0;
-  padding: 6px 6px calc(var(--safe-bottom) + 6px);
+  padding: 6px 6px calc(var(--safe-bottom) + 6px + var(--badge-gap));
   display: flex;
   gap: 4px;
   justify-content: space-around;
@@ -247,7 +250,7 @@ button.chip { cursor: pointer; font-family: inherit; }
 .sheet-body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 12px calc(var(--safe-bottom) + 16px);
+  padding: 0 12px calc(var(--safe-bottom) + 16px + var(--badge-gap));
 }
 
 h3.sec {
@@ -386,7 +389,7 @@ h3.sec {
 .toasts {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--safe-bottom) + 78px);
+  bottom: calc(var(--safe-bottom) + 78px + var(--badge-gap));
   transform: translateX(-50%);
   display: flex;
   flex-direction: column-reverse;

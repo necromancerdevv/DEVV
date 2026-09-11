@@ -134,6 +134,38 @@
     UI.toast('Докато те нямаше: ' + parts.join(', '), 'good');
   }
 
+  // --- Чужди значки долу -------------------------------------------------
+  // Хостингът може да сложи собствен надпис долу вдясно („Powered by Netlify").
+  // Намираме всеки чужд фиксиран елемент, опрян в долния край, и вдигаме
+  // лентата с толкова, колкото заема — иначе покрива бутоните.
+  function avoidOverlays() {
+    var gap = 0;
+    var kids = document.body.children;
+    for (var i = 0; i < kids.length; i++) {
+      var n = kids[i];
+      if (n.id === 'app' || n.tagName === 'SCRIPT' || n.tagName === 'STYLE' || n.tagName === 'LINK') continue;
+      var cs = global.getComputedStyle(n);
+      if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') continue;
+      var r = n.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      if (r.bottom > global.innerHeight - 130 && r.top < global.innerHeight) {
+        gap = Math.max(gap, Math.min(96, global.innerHeight - r.top));
+      }
+    }
+    document.documentElement.style.setProperty('--badge-gap', gap ? (gap + 6) + 'px' : '0px');
+  }
+
+  function watchOverlays() {
+    avoidOverlays();
+    // значката често се вмъква след първото рисуване
+    setTimeout(avoidOverlays, 900);
+    setTimeout(avoidOverlays, 3000);
+    global.addEventListener('resize', avoidOverlays);
+    if (global.MutationObserver) {
+      new MutationObserver(avoidOverlays).observe(document.body, { childList: true });
+    }
+  }
+
   // --- Цикъл -------------------------------------------------------------
   var lastTick = 0;
 
@@ -169,6 +201,7 @@
     }
 
     G.save(true);
+    watchOverlays();
     requestAnimationFrame(loop);
 
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {

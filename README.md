@@ -1,87 +1,176 @@
-# Такси Империя
+# rsg-character
 
-Idle игра на български: управляваш таксиметрова империя в процедурно генериран
-жив град. Един файл, никакви зависимости, никакъв билд процес.
+Character selection, creation, clothing store and spawn system for **RSG-Core** (RedM).
 
-- `index.html` — цялата игра: симулация, рендер на canvas и интерфейс
-- `sw.js` — service worker за офлайн работа
-- `manifest.webmanifest` + `icon-*.png` — PWA метаданни и икони
-- `netlify.toml`, `_headers` — конфигурация за деплой
+---
 
-Няма мрежови заявки и няма външни ресурси: играта работи изцяло офлайн,
-а прогресът се пази локално в localStorage, с IndexedDB като резервен вариант.
+## Features
 
-## Втора игра: Слънчева Ферма
+### Character Select
+- In-world character select screen: your characters' peds line up at a location you can configure.
+- Multiple character slots per player license (default **4**, configurable).
+- Create, select and delete characters, with the camera framing every slot automatically.
 
-В папка [`farm/`](farm/) живее втора игра — **Слънчева Ферма**, идле ферма в
-духа на FarmVille: ниви, животни, цехове и поръчки, отново на български и
-отново офлайн. Деплойва се заедно с тази тук и се отваря на адрес `/farm/`.
-Подробностите са в [`farm/README.md`](farm/README.md).
+### Character Creator
+- Male / female selection.
+- Body options: body type (slim, sporty, medium, fat, strong), waist, chest, skin tone.
+- Detailed face options: eyes, eyelids, eyebrows, nose, mouth, lips, teeth, cheekbones, jaw, ears and chin.
+- Hair and beard styles and colours.
+- Overlays: scars, freckles, moles, spots, ageing, eye shadow, blush, lipstick and eyeliner, each with colour and opacity.
+- Identity form: first name, last name, a nationality dropdown and a birth date (1750–1900).
+- A profanity filter for character names.
+- Starter items given to each new character.
 
-## Деплой в Netlify
+### Clothing Store & Wardrobe
+- Clothing stores in Valentine, Rhodes, Saint Denis, Blackwater, Strawberry, Armadillo and Tumbleweed, with map blips.
+- Clothing is split into categories (Head, Shirts & Vests, Belts & Holsters, Coats, Legs, Feet, Hands, Accessories, Misc Gear).
+- Each category has its own price, paid in cash.
+- Save named outfits, then wear or delete them from the wardrobe (cloakroom).
+- The server checks every clothing purchase and outfit change.
+- Configurable store door states (open or locked).
 
-### Вариант 1 — свързване на хранилището (препоръчително)
+### Spawn Select
+- A card-based spawn screen with an image for each location.
+- Default locations: Valentine, Rhodes, Saint Denis and Blackwater.
 
-В Netlify: **Add new site → Import an existing project**, избираш това
-хранилище и клона. Настройките се четат от `netlify.toml`, така че полетата
-за билд остават празни:
+### Other
+- Discord webhook logging for character created, deleted and selected, appearance saved and outfit purchased.
+- A `/loadskin` command to reload your appearance.
+- Locales: en, de, el, es, fr, ja, nl, pl, pt-br, ro.
+- Exports for other resources (see below).
 
-| Поле | Стойност |
+---
+
+## Dependencies
+
+- [rsg-core](https://github.com/Rexshack-RedM/rsg-core)
+- [ox_lib](https://github.com/Rexshack-RedM/ox_lib)
+- [oxmysql](https://github.com/Rexshack-RedM/oxmysql)
+
+---
+
+## Installation
+
+1. Download the resource and put the `rsg-character` folder in your server's `resources` folder (for example `resources/[rsg]/rsg-character`).
+2. Make sure your database has the `playerskins` and `playeroutfit` tables. Most RSG-Core installs already include them. If yours doesn't, run:
+
+```sql
+CREATE TABLE IF NOT EXISTS `playerskins` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `citizenid` VARCHAR(255) NOT NULL,
+  `skin` LONGTEXT NOT NULL,
+  `clothes` LONGTEXT NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `citizenid` (`citizenid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `playeroutfit` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `citizenid` VARCHAR(255) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `clothes` LONGTEXT NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `citizenid` (`citizenid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+3. Ensure the resource in `server.cfg` **after** its dependencies:
+
+```cfg
+ensure oxmysql
+ensure ox_lib
+ensure rsg-core
+ensure rsg-character
+```
+
+4. Remove or disable any other multicharacter, appearance or clothing resource (such as `rsg-multicharacter` or `rsg-appearance`) so they don't conflict.
+5. Edit `shared/config.lua` (see below), then restart the server.
+
+---
+
+## Configuration
+
+All settings are in `shared/config.lua`.
+
+| Option | Description |
 |---|---|
-| Build command | *(празно)* |
-| Publish directory | `.` |
+| `RSG.MaxCharacterSlots` | Number of character slots per player license (default `4`). |
+| `RSG.ProfanityWords` | Words blocked in character names (`['word'] = true`). |
+| `RSG.Nationalities` | Locale keys shown in the nationality dropdown. Their display names are under `nationalities` in `locales/*.json`. |
+| `RSG.StarterItems` | Items given once to a new character: `{ item = 'bread', amount = 2 }`. |
+| `RSG.CharSelectLocation` | `coords` (vector4) where the peds line up, `spacing` between peds, and `camera` settings (`back`, `height`, `fov`). |
+| `RSG.Webhooks` | One entry per log event. Set `enabled`, paste your Discord webhook `url`, and optionally set `name`, `avatar` and `color`. |
+| `RSG.SpawnLocations` | Spawn cards: `label`, `coords` (vector4) and `image` (a path under `html/`, such as `img/spawn/valentine.jpg`). |
+| `RSG.Prompt` | Control hashes used in the creator (gender select, confirm, camera, rotate, zoom). |
+| `RSG.OpenKey` / `RSG.Keybind` | Key that opens the clothing store / wardrobe. |
+| `RSG.BlipSprite`, `RSG.BlipSpriteCloakRoom`, `RSG.BlipScale` | Map blip settings. |
+| `RSG.SetDoorState` | Store door hashes and state (`0` = open, `1` = locked). |
+| `RSG.Zones1` | Clothing store locations: `blipcoords`, `fittingcoords`, `quitcoords`, `promtcoords` and `showblip`. |
+| `RSG.Cloakroom` | Wardrobe locations (vector3). |
+| `RSG.MenuElements` | Which clothing categories appear under each store menu section. |
+| `RSG.Price` | Cash price for each clothing category. |
 
-Всеки следващ push към клона прави нов деплой автоматично.
-
-### Вариант 2 — ръчно качване
-
-Влачиш архива върху [app.netlify.com/drop](https://app.netlify.com/drop).
-Архивът трябва да съдържа файловете в корена си, без обгръщаща папка:
-
+### Adding a spawn location
+```lua
+{ label = 'Strawberry', coords = vector4(-1790.0, -390.0, 160.3, 0.0), image = 'img/spawn/strawberry.jpg' },
 ```
-zip -r ferma-i-taksi.zip index.html sw.js manifest.webmanifest icon-*.png _headers netlify.toml farm
-```
+Put the image in `html/img/spawn/`. Existing entries use a locale key (`locale('spawn_locations.valentine')`) as the label. You can do the same for new ones by adding a key under `spawn_locations` in the locale files. A missing image just leaves the card blank.
 
-### Вариант 3 — Netlify CLI
+### Webhooks
+Replace the placeholder `https://discord.com/api/webhooks/XXXXXXXX/XXXXXXXX` URLs with your own. A category that is enabled but has no valid URL prints a warning to the server console instead of throwing an error.
 
-```
-npm i -g netlify-cli
-netlify deploy --prod --dir .
-```
-
-## Защо конфигурацията изглежда така
-
-`_headers` носи заглавията, а не `netlify.toml`, защото този файл се зачита и
-при двата начина на деплой, докато `netlify.toml` важи само при Git деплой.
-
-Трите неща, които заглавията решават:
-
-**`index.html` и `sw.js` се преутвърждават при всяко зареждане.** Името на
-кеша в service worker-а е единственият ключ за инвалидация. Ако самият `sw.js`
-дойде от кеша на CDN-а, новият билд никога не стига до вече инсталираните
-устройства — капан, в който този проект вече е попадал веднъж.
-
-**Манифестът се сервира като `application/manifest+json`.** Иначе някои
-браузъри отказват да го приемат и играта не се инсталира като приложение.
-
-**CSP политиката забранява всякакви външни ресурси.** Играта е самостойна, така
-че `default-src 'self'` не ѝ пречи. `'unsafe-inline'` е нужен, защото скриптът
-и стиловете са вградени в `index.html`.
-
-## Локално пускане
-
-Service worker-ът изисква `http://localhost` или HTTPS — през `file://` нито
-той се регистрира, нито IndexedDB работи:
-
-```
-python3 -m http.server 8000
+### Locales
+Text is loaded through ox_lib locales from `locales/<lang>.json`. Choose the language with the ox_lib convar in `server.cfg`, for example:
+```cfg
+setr ox:locale en
 ```
 
-После отваряш `http://127.0.0.1:8000/`.
+---
 
-## Версии
+## Usage
 
-Версията се изписва долу вдясно в играта и трябва да съвпада с името на кеша
-в `sw.js` (`CACHE = "taxi-empire-vN"`). **При всяка промяна в `index.html`
-вдигай и двете** — иначе устройствата с инсталирана игра остават на старата
-версия.
+### Players
+1. **Join the server.** The character select screen opens with your existing characters.
+2. **Choose a slot.** Click an existing character to play, or an empty slot to create a new one.
+3. **Create a character.** Pick male or female, shape the body and face, choose hair and makeup, then enter your name, nationality and birth date. Use the on-screen prompts to move the camera up and down, rotate and zoom.
+4. **Spawn.** Choose a spawn location from the cards.
+5. **Clothing stores.** Go to a store (clothing blip on the map), stand at the prompt and press the open key. Browse categories, try items on, and pay in cash to save the outfit.
+6. **Wardrobe.** At a cloakroom, wear or delete your saved outfits.
+
+### Commands
+| Command | Description |
+|---|---|
+| `/loadskin` | Reloads your saved skin and clothing. It doesn't work while you're dead, cuffed, hogtied, lassoed, being dragged, ragdolled, falling or jailed. |
+
+### Exports (client)
+```lua
+exports['rsg-character']:ApplySkin(...)
+exports['rsg-character']:ApplySkinMultiChar(...)
+exports['rsg-character']:SetFaceOverlays(target, data)
+exports['rsg-character']:SetHair(target, data)
+exports['rsg-character']:SetBeard(target, data)
+exports['rsg-character']:GetComponentId(name)
+exports['rsg-character']:GetBodyComponents()
+exports['rsg-character']:GetBodyCurrentComponentHash(name)
+exports['rsg-character']:GetComponentsMax(name)
+exports['rsg-character']:GetMaxTexturesForModel(category, model, isClothing)
+exports['rsg-character']:GetClothesComponents()
+exports['rsg-character']:GetClothesCache(name)
+exports['rsg-character']:GetClothesComponentId(name)
+exports['rsg-character']:GetClothesCurrentComponentHash(name)
+exports['rsg-character']:IsCothingActive()
+```
+
+### Events
+| Event | Side | Description |
+|---|---|---|
+| `rsg-character:client:OpenCharSelect` | client | Opens the character select screen. |
+| `rsg-character:client:OpenCreator` | client | Opens the character creator. |
+| `rsg-character:client:OpenSpawnSelect` | client | Opens the spawn select screen. |
+| `rsg-character:client:ApplySkin` | client | Applies a skin and clothes to the player. |
+| `rsg-character:client:outfits` | client | Opens the outfit wardrobe. |
+
+---
+
+## Credits
+- RexShack / RSG Framework

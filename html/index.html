@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/wardrobe.css">
 </head>
 <body>
 <div id="app" class="hidden">
@@ -125,6 +126,52 @@
     <div id="loading-text" class="loading-text"></div>
 </div>
 
+
+<div id="wardrobe" class="hidden">
+    <div class="wd-shell">
+        <nav id="wd-tabs" class="wd-tabs" aria-label="categories"></nav>
+
+        <section class="wd-col wd-col-cats">
+            <header class="wd-head">
+                <div id="wd-title" class="wd-title"></div>
+                <div id="wd-subtitle" class="wd-subtitle"></div>
+            </header>
+            <div class="wd-rule"><span>&#10022;</span></div>
+            <div id="wd-cats" class="wd-cats"></div>
+        </section>
+
+        <section class="wd-col wd-col-browser">
+            <header class="wd-head wd-browser-head">
+                <div id="wd-cat-name" class="wd-title"></div>
+                <div class="wd-jump">
+                    <label id="wd-jump-label" for="wd-jump-input"></label>
+                    <input id="wd-jump-input" class="wd-jump-input" type="number" min="0" step="1">
+                </div>
+            </header>
+            <div class="wd-rule"><span>&#10022;</span></div>
+            <div id="wd-browser" class="wd-browser"></div>
+        </section>
+    </div>
+
+    <footer class="wd-bar">
+        <div class="wd-bar-figures">
+            <div class="wd-figure">
+                <span id="wd-money-label" class="wd-figure-label"></span>
+                <span id="wd-money" class="wd-figure-value"></span>
+            </div>
+            <div class="wd-figure">
+                <span id="wd-total-label" class="wd-figure-label"></span>
+                <span id="wd-price" class="wd-figure-value"></span>
+            </div>
+        </div>
+        <div class="wd-bar-actions">
+            <button id="wd-remove" class="wd-btn wd-btn-muted"></button>
+            <button id="wd-save" class="wd-btn"></button>
+            <button id="wd-exit" class="wd-btn wd-btn-muted"></button>
+        </div>
+    </footer>
+</div>
+
 <div id="spawn-select-panel" class="spawn-select-overlay hidden">
     <div class="spawn-select-header">
         <div id="spawn-select-title" class="spawn-select-title"></div>
@@ -134,5 +181,6 @@
 </div>
 
 <script src="js/app.js"></script>
+<script src="js/wardrobe.js"></script>
 </body>
 </html>

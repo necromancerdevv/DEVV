@@ -430,5 +430,20 @@
     "outfit_limit_reached": "You can only store %s outfits - this one was not saved to your wardrobe",
     "outfit_delete_confirm": "Delete this outfit?",
     "default_outfit_name": "Default",
-    "auto_outfit_name": "Outfit %s"
+    "auto_outfit_name": "Outfit %s",
+    "wardrobe": {
+        "items": "Items",
+        "variants": "Variants",
+        "tint": "Colour",
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "tertiary": "Tertiary",
+        "palette": "Palette",
+        "none": "None",
+        "search": "Go to #",
+        "empty": "Pick a category",
+        "money": "Cash",
+        "exit": "Leave",
+        "advanced": "Advanced"
+    }
 }

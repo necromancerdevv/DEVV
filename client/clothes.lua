@@ -3,6 +3,7 @@ local ClothingCamera = nil
 local c_zoom = 2.4
 local c_offset = -0.15
 local clothing = require 'data.clothing'
+local Tints = require 'data.tints'
 
 local BODY_CATEGORY_MAP = {
     shirts_full = "BODIES_UPPER",
@@ -98,169 +99,293 @@ function GetDescriptionLayout(value, price)
     return desc
 end
 
+-- ---------------------------------------------------------------------------
+-- Wardrobe
+--
+-- One screen instead of the old two-level slider menu: a tab rail down the
+-- side, the categories of the active tab, and an item browser with a colour
+-- row for the selected category.  Items and colours are picked directly rather
+-- than arrowed through, and tintable garments get the metaped tint channels on
+-- top of their variants.
+-- ---------------------------------------------------------------------------
+
+local function WardrobeCategoryState(catId)
+    local gender = IsPedMale(PlayerPedId()) and "male" or "female"
+    local category = clothing[gender][catId]
+    if not category then return nil end
+
+    if type(ClothesCache[catId]) ~= "table" then
+        ClothesCache[catId] = { model = 0, texture = 1 }
+    end
+
+    local cache = ClothesCache[catId]
+    local model = tonumber(cache.model) or 0
+
+    return {
+        id = catId,
+        label = RSG.Label[catId] or catId,
+        price = RSG.Price[catId] or 0,
+        model = model,
+        maxModels = #category,
+        variant = tonumber(cache.texture) or 1,
+        maxVariants = model > 0 and GetMaxTexturesForModel(catId, model, true) or 0,
+        tintable = Tints.IsTintable(catId),
+        palette = cache.palette or Tints.DEFAULT_PALETTE,
+        tint0 = cache.tint0 or Tints.OFF,
+        tint1 = cache.tint1 or Tints.OFF,
+        tint2 = cache.tint2 or Tints.OFF,
+    }
+end
+
+local function PlayerCash()
+    local ok, data = pcall(function() return RSGCore.Functions.GetPlayerData() end)
+    if ok and data and data.money then
+        return data.money.cash or 0
+    end
+    return 0
+end
+
+local function BuildWardrobePayload()
+    local resource = GetCurrentResourceName()
+    local tabs = {}
+
+    for tabId, tab in pairsByKeys(RSG.MenuElements) do
+        local categories = {}
+        for _, catId in ipairs(tab.category) do
+            categories[#categories + 1] = WardrobeCategoryState(catId)
+        end
+        if #categories > 0 then
+            tabs[#tabs + 1] = {
+                id = tabId,
+                label = tab.label or tabId,
+                icon = ("nui://%s/img/%s.png"):format(resource, tabId),
+                categories = categories,
+            }
+        end
+    end
+
+    return {
+        title = RSG.Label.clothes,
+        subtitle = RSG.Label.options,
+        money = PlayerCash(),
+        price = CurrentPrice,
+        purchasable = not (IsInCharCreation or Skinkosong),
+        tabs = tabs,
+        presets = Tints.Presets,
+        tintOff = Tints.OFF,
+        labels = {
+            items = locale('wardrobe.items'),
+            variants = locale('wardrobe.variants'),
+            tint = locale('wardrobe.tint'),
+            primary = locale('wardrobe.primary'),
+            secondary = locale('wardrobe.secondary'),
+            tertiary = locale('wardrobe.tertiary'),
+            palette = locale('wardrobe.palette'),
+            advanced = locale('wardrobe.advanced'),
+            none = locale('wardrobe.none'),
+            search = locale('wardrobe.search'),
+            empty = locale('wardrobe.empty'),
+            money = locale('wardrobe.money'),
+            total = RSG.Label.total,
+            save = RSG.Label.save,
+            removeAll = locale('clothing_menu.remove_all.label'),
+            exit = locale('wardrobe.exit'),
+        },
+    }
+end
+
+--- Re-applies the stored tint for a category.  Swapping a component resets its
+--- tints, so this runs after every item and variant change too.
+function ApplyCategoryTint(catId)
+    local cache = ClothesCache[catId]
+    if type(cache) ~= "table" or not cache.palette then return end
+
+    local ped = PlayerPedId()
+    NativeSetTextureOutfitTints(ped, joaat(catId), cache.palette, cache.tint0, cache.tint1, cache.tint2)
+    NativeUpdatePedVariation(ped)
+end
+
+--- Pushes one category's state and the running total back to the open wardrobe,
+--- leaving the rest of the view (scroll position, active tab) alone.
+local function RefreshWardrobe(catId)
+    if not (IsInCharCreation or Skinkosong) then
+        CurrentPrice = CalculatePrice(ConvertCacheToHash(ClothesCache), ConvertCacheToHash(OldClothesCache), IsPedMale(PlayerPedId()))
+    end
+
+    local patch = { price = CurrentPrice, money = PlayerCash() }
+    local state = catId and WardrobeCategoryState(catId)
+    if state then patch.categories = { state } end
+
+    UI.UpdateWardrobe(patch)
+end
+
+local function WardrobeSelectItem(catId, value)
+    local cache = ClothesCache[catId]
+    if type(cache) ~= "table" then return end
+
+    local gender = IsPedMale(PlayerPedId()) and "male" or "female"
+    local category = clothing[gender][catId]
+    if not category then return end
+
+    value = math.max(0, math.min(tonumber(value) or 0, #category))
+    if cache.model == value then return end
+
+    cache.texture = 1
+    cache.model = value
+
+    if value > 0 then
+        Change(value, catId, "model")
+        ApplyCategoryTint(catId)
+        EnsureBareBody(catId)
+    else
+        -- Taking the garment off: clear the slot, drop its tint and put the bare
+        -- body back underneath.
+        local clearCategory = catId == 'cloaks' and 'ponchos' or catId
+        Citizen.InvokeNative(0xD710A5007C2AC539, PlayerPedId(), GetHashKey(clearCategory), 0)
+        NativeUpdatePedVariation(PlayerPedId())
+
+        cache.palette, cache.tint0, cache.tint1, cache.tint2 = nil, nil, nil, nil
+
+        local bodyPart = BODY_CATEGORY_MAP[catId]
+        if bodyPart then
+            local hash = GetBodyFallbackHash(bodyPart)
+            if hash then
+                NativeSetPedComponentEnabledClothes(PlayerPedId(), hash, false, true, true)
+            end
+        end
+        EnsureBareBody(catId)
+    end
+
+    RefreshWardrobe(catId)
+end
+
+local function WardrobeSelectVariant(catId, value)
+    local cache = ClothesCache[catId]
+    if type(cache) ~= "table" or (tonumber(cache.model) or 0) < 1 then return end
+
+    local maxVariants = GetMaxTexturesForModel(catId, cache.model, true)
+    value = math.max(1, math.min(tonumber(value) or 1, maxVariants))
+    if cache.texture == value then return end
+
+    cache.texture = value
+    Change(value, catId, "texture")
+    ApplyCategoryTint(catId)
+    EnsureBareBody(catId)
+
+    RefreshWardrobe(catId)
+end
+
+local function WardrobeSetTint(catId, data)
+    local cache = ClothesCache[catId]
+    if type(cache) ~= "table" or (tonumber(cache.model) or 0) < 1 then return end
+    if not Tints.IsTintable(catId) then return end
+
+    local tint = {
+        palette = Tints.Palette(data.palette),
+        tint0 = Tints.Channel(data.t0),
+        tint1 = Tints.Channel(data.t1),
+        tint2 = Tints.Channel(data.t2),
+    }
+
+    if Tints.IsDefault(tint) then
+        -- All three channels off - store nothing so the garment keeps the colour
+        -- it ships with and the outfit row stays clean.
+        cache.palette, cache.tint0, cache.tint1, cache.tint2 = nil, nil, nil, nil
+        Change(cache.texture, catId, "texture")
+        EnsureBareBody(catId)
+    else
+        cache.palette, cache.tint0, cache.tint1, cache.tint2 = tint.palette, tint.tint0, tint.tint1, tint.tint2
+        ApplyCategoryTint(catId)
+    end
+
+    RefreshWardrobe(catId)
+end
+
+local function WardrobeLeave()
+    UI.CloseAll()
+    destory()
+    if next(CurentCoords) == nil then
+        CurentCoords = RSG.Zones1[1]
+    end
+    TeleportAndFade(CurentCoords.quitcoords, true)
+    Wait(1000)
+    ExecuteCommand('loadskin')
+end
+
+local function WardrobeSave()
+    UI.CloseAll()
+    destory()
+
+    local alert = UI.alertDialog({
+        header = locale('save_outfit_1'),
+        centered = true,
+        cancel = true,
+    })
+
+    if alert ~= 'confirm' then
+        local str = Citizen.InvokeNative(0xFA925AC00EB830B9, 10, "LITERAL_STRING", locale('clothing_menu.category_desc'), Citizen.ResultAsLong())
+        Citizen.InvokeNative(0xFA233F8FE190514C, str)
+        Wait(100)
+        GenerateMenu()
+        return
+    end
+
+    local input = UI.inputDialog(locale('save_outfit_2_header'), {
+        {
+            type = 'input',
+            label = locale('save_outfit_2_input_label'),
+            required = true,
+        },
+    })
+
+    local ClothesHash = ConvertCacheToHash(ClothesCache)
+    local isMale = IsPedMale(PlayerPedId())
+    if input and input[1] then
+        TriggerServerEvent("rsg-character:server:saveOutfit", ClothesHash, isMale, input[1])
+    else
+        TriggerServerEvent("rsg-character:server:saveOutfit", ClothesHash, isMale)
+    end
+
+    if next(CurentCoords) == nil then
+        CurentCoords = RSG.Zones1[1]
+    end
+    TeleportAndFade(CurentCoords.quitcoords, true)
+    Wait(1000)
+    ExecuteCommand('loadskin')
+end
+
+local function WardrobeAction(id)
+    if id == "remove_all" then
+        local alert = UI.alertDialog({
+            header = locale('clothing_menu.remove_all.confirm'),
+            centered = true,
+            cancel = true,
+        })
+        if alert == 'confirm' then
+            RemoveAllClothes()
+            OpenClothingMenu()
+        end
+    elseif id == "save" then
+        WardrobeSave()
+    elseif id == "exit" then
+        if (IsInCharCreation or Skinkosong) then
+            UI.CloseAll()
+            FirstMenu()
+        else
+            WardrobeLeave()
+        end
+    end
+end
+
 function OpenClothingMenu()
     UI.CloseAll()
-    local elements = {}
-
-    for v, k in pairsByKeys(RSG.MenuElements) do
-        elements[#elements + 1] = { label = k.label or v, value = v, category = v, desc = image:format(v) .. "<br><br>" .. Divider .. "<br> " .. locale('clothing_menu.category_desc'), }
-    end
-    elements[#elements + 1] = { label = locale('clothing_menu.remove_all.label'), value = "remove_all", desc = locale('clothing_menu.remove_all.desc'), danger = true }
-    if not (IsInCharCreation or Skinkosong) then
-        local descLayout = GetDescriptionLayout({ img = "menu_icon_tick", desc = locale('clothing_menu.confirm_purhcase') })
-        elements[#elements + 1] = { label = RSG.Label.save, value = "save", desc = descLayout }
-    end
-    UI.Open('default', GetCurrentResourceName(), 'clothing_store_menu',
-        { title = RSG.Label.clothes, subtext = RSG.Label.options, align = 'top-left', elements = elements, itemHeight = "4vh"},
-        function(data, menu)
-            if data.current.value == "remove_all" then
-                local alert = UI.alertDialog({
-                    header = locale('clothing_menu.remove_all.confirm'),
-                    centered = true,
-                    cancel = true,
-                })
-                if alert == 'confirm' then RemoveAllClothes() end
-                return OpenClothingMenu()
-            elseif data.current.value ~= "save" then
-                OpenCateogry(data.current.value)
-            else
-                menu.close()
-                destory()
-                local alert = UI.alertDialog({
-                    header = locale('save_outfit_1'),
-                    centered = true,
-                    cancel = true,
-                })
-                if alert == 'confirm' then
-                    local input = UI.inputDialog(locale('save_outfit_2_header'), {
-                        {
-                            type = 'input',
-                            label = locale('save_outfit_2_input_label'),
-                            required = true,
-                        },
-                    })
-                    local ClothesHash = ConvertCacheToHash(ClothesCache)
-                    local isMale = IsPedMale(PlayerPedId())
-                    if input and input[1] then
-                        TriggerServerEvent("rsg-character:server:saveOutfit", ClothesHash, isMale, input[1])
-                    else
-                        TriggerServerEvent("rsg-character:server:saveOutfit", ClothesHash, isMale)
-                    end
-                    if next(CurentCoords) == nil then
-                        CurentCoords = RSG.Zones1[1]
-                    end
-                    TeleportAndFade(CurentCoords.quitcoords, true)
-                    Wait(1000)
-                    ExecuteCommand('loadskin')
-                else
-                    local str = Citizen.InvokeNative(0xFA925AC00EB830B9, 10, "LITERAL_STRING", locale('clothing_menu.category_desc'), Citizen.ResultAsLong())
-                    Citizen.InvokeNative(0xFA233F8FE190514C, str)
-                    Wait(100)
-                    GenerateMenu()
-                end
-            end
-        end, function(data, menu)
-            if (IsInCharCreation or Skinkosong) then
-                menu.close()
-                FirstMenu()
-            else
-                menu.close()
-                destory()
-                if next(CurentCoords) == nil then
-                    CurentCoords = RSG.Zones1[1]
-                end
-                TeleportAndFade(CurentCoords.quitcoords, true)
-                Wait(1000)
-                ExecuteCommand('loadskin')
-            end
-        end)
-end
-
-function OpenCateogry(menu_catagory)
-    UI.CloseAll()
-    local elements = {}
-    local gender = IsPedMale(PlayerPedId()) and "male" or "female"
-    local a = 1
-    for v, k in pairsByKeys(RSG.MenuElements[menu_catagory].category) do
-        local category = clothing[gender][k]
-        if category then
-            if type(ClothesCache[k]) ~= "table" then
-                ClothesCache[k] = { model = 0, texture = 1 }
-            end
-            local name = RSG.Label[k] or v
-            local price = RSG.Price[k] or 0
-            elements[#elements + 1] = {
-                label = price .. "$ " .. name,
-                value = ClothesCache[k].model or 0,
-                category = k, group = k, showCount = true, desc = "",
-                type = "slider", min = 0, max = #category,
-                change_type = "model", id = a,
-            }
-            a = a + 1
-            elements[#elements + 1] = {
-                label = RSG.Label.color .. name,
-                value = ClothesCache[k].texture or 1,
-                category = k, group = k, showCount = true, desc = "",
-                type = "slider", min = 1, max = GetMaxTexturesForModel(k, ClothesCache[k].model or 1, true),
-                change_type = "texture", id = a,
-            }
-            a = a + 1
-        end
-    end
-    UI.Open('default', GetCurrentResourceName(), 'clothing_store_menu_category',
-        {title = RSG.Label.clothes, subtext = RSG.Label.options, align = 'top-left', elements = elements, itemHeight = "4vh"}, function(data, menu)
-    end, function(data, menu)
-        menu.close()
-        OpenClothingMenu()
-    end, function(data, menu)
-        MenuUpdateClothes(data, menu)
-    end)
-end
-
-function MenuUpdateClothes(data, menu)
-    if data.current.change_type == "model" then
-        if ClothesCache[data.current.category].model ~= data.current.value then
-            ClothesCache[data.current.category].texture = 1
-            ClothesCache[data.current.category].model = data.current.value
-            if data.current.value > 0 then
-                menu.setElement(data.current.id + 1, "max", GetMaxTexturesForModel(data.current.category, data.current.value, true))
-                menu.setElement(data.current.id + 1, "min", 1)
-                menu.setElement(data.current.id + 1, "value", 1)
-                menu.refresh()
-                Change(data.current.value, data.current.category, data.current.change_type)
-                EnsureBareBody(data.current.category)
-            else
-                local clearCategory = data.current.category == 'cloaks' and 'ponchos' or data.current.category
-                Citizen.InvokeNative(0xD710A5007C2AC539, PlayerPedId(), GetHashKey(clearCategory), 0)
-                NativeUpdatePedVariation(PlayerPedId())
-                local bodyPart = BODY_CATEGORY_MAP[data.current.category]
-                if bodyPart then
-                    local hash = GetBodyFallbackHash(bodyPart)
-                    if hash then
-                        NativeSetPedComponentEnabledClothes(PlayerPedId(), hash, false, true, true)
-                    end
-                end
-                EnsureBareBody(data.current.category)
-                menu.setElement(data.current.id + 1, "max", 0)
-                menu.setElement(data.current.id + 1, "min", 0)
-                menu.setElement(data.current.id + 1, "value", 0)
-                menu.refresh()
-            end
-            if not (IsInCharCreation or Skinkosong) then
-                local newPrice = CalculatePrice(ConvertCacheToHash(ClothesCache), ConvertCacheToHash(OldClothesCache), IsPedMale(PlayerPedId()))
-                if CurrentPrice ~= newPrice then
-                    CurrentPrice = newPrice
-                end
-            end
-        end
-    end
-    if data.current.change_type == "texture" then
-        if ClothesCache[data.current.category].texture ~= data.current.value then
-            ClothesCache[data.current.category].texture = data.current.value
-            Change(data.current.value, data.current.category, data.current.change_type)
-            EnsureBareBody(data.current.category)
-        end
-    end
+    UI.OpenWardrobe(BuildWardrobePayload(), {
+        onItem = WardrobeSelectItem,
+        onVariant = WardrobeSelectVariant,
+        onTint = WardrobeSetTint,
+        onAction = WardrobeAction,
+        onClose = function() WardrobeAction("exit") end,
+    })
 end
 
 function ClothingLight()

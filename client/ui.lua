@@ -17,6 +17,14 @@ local dialogPromise = nil
 local alertPromise = nil
 local spawnSelectPromise = nil
 
+-- Wardrobe (clothing store) view.  It lives beside the generic list menu rather
+-- than inside it: the payload is a whole screen - tab rail, category list, item
+-- browser, colour swatches - not a flat list of rows.
+local wardrobe = {
+    payload = nil,
+    handlers = nil,
+}
+
 local function sendMenu()
     SendNUIMessage({
         action = "openMenu",
@@ -27,9 +35,20 @@ local function sendMenu()
     })
 end
 
+local function sendWardrobe()
+    local payload = wardrobe.payload
+    if not payload then return end
+    payload.action = "openWardrobe"
+    SendNUIMessage(payload)
+end
+
 local function restoreFocusAfterOverlay()
     if state.open then
         sendMenu()
+    elseif wardrobe.payload then
+        -- A dialog opened on top of the wardrobe (naming an outfit, confirming a
+        -- purchase).  Re-send the view so it is still there underneath.
+        sendWardrobe()
     else
         SetNuiFocus(false, false)
     end
@@ -81,6 +100,8 @@ end
 function UI.CloseAll()
     state.open = false
     state.elements = {}
+    wardrobe.payload = nil
+    wardrobe.handlers = nil
     SendNUIMessage({ action = "closeAll" })
     SetNuiFocus(false, false)
 end
@@ -295,4 +316,77 @@ RegisterNUICallback("alertCancel", function(data, cb)
         alertPromise:resolve("cancel")
         alertPromise = nil
     end
+end)
+
+
+-- ---------------------------------------------------------------------------
+-- Wardrobe
+-- ---------------------------------------------------------------------------
+
+--- Opens the clothing store view.
+--- @param payload table tabs, presets, labels, money and price - see BuildWardrobePayload
+--- @param handlers table onItem, onVariant, onTint, onAction, onClose
+function UI.OpenWardrobe(payload, handlers)
+    state.open = false
+    state.elements = {}
+    wardrobe.payload = payload or {}
+    wardrobe.handlers = handlers or {}
+    sendWardrobe()
+    SetNuiFocus(true, true)
+end
+
+--- Pushes changed values into an already open wardrobe without rebuilding it,
+--- so the grid does not jump back to the top on every click.
+--- @param patch table price and/or a categories array of partial category states
+function UI.UpdateWardrobe(patch)
+    if not wardrobe.payload then return end
+    patch = patch or {}
+    patch.action = "updateWardrobe"
+    SendNUIMessage(patch)
+end
+
+function UI.CloseWardrobe()
+    wardrobe.payload = nil
+    wardrobe.handlers = nil
+    SendNUIMessage({ action = "closeWardrobe" })
+    SetNuiFocus(false, false)
+end
+
+function UI.IsWardrobeOpen()
+    return wardrobe.payload ~= nil
+end
+
+local function wardrobeHandler(name)
+    local handlers = wardrobe.handlers
+    return handlers and handlers[name]
+end
+
+RegisterNUICallback("wardrobeItem", function(data, cb)
+    cb("ok")
+    local handler = wardrobeHandler("onItem")
+    if handler then handler(data.category, tonumber(data.value) or 0) end
+end)
+
+RegisterNUICallback("wardrobeVariant", function(data, cb)
+    cb("ok")
+    local handler = wardrobeHandler("onVariant")
+    if handler then handler(data.category, tonumber(data.value) or 1) end
+end)
+
+RegisterNUICallback("wardrobeTint", function(data, cb)
+    cb("ok")
+    local handler = wardrobeHandler("onTint")
+    if handler then handler(data.category, data) end
+end)
+
+RegisterNUICallback("wardrobeAction", function(data, cb)
+    cb("ok")
+    local handler = wardrobeHandler("onAction")
+    if handler then handler(data.id) end
+end)
+
+RegisterNUICallback("wardrobeClose", function(data, cb)
+    cb("ok")
+    local handler = wardrobeHandler("onClose")
+    if handler then handler() end
 end)

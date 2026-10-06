@@ -659,6 +659,12 @@ function ConvertCacheToHash(ClothesCache)
                     end
                     if list?[id]?[tonumber(v.texture)] then
                         clothesHashes[k] = { hash = tonumber(list[id][tonumber(v.texture)].hash) }
+                        if v.palette then
+                            clothesHashes[k].palette = v.palette
+                            clothesHashes[k].tint0 = v.tint0
+                            clothesHashes[k].tint1 = v.tint1
+                            clothesHashes[k].tint2 = v.tint2
+                        end
                     end
                 end
             elseif v.hash then
@@ -1108,6 +1114,16 @@ end
 
 function NativeFixMeshIssues(ped, categoryHash)
     Citizen.InvokeNative(0x59BD177A1A48600A, ped, categoryHash)
+end
+
+--- SET_TEXTURE_OUTFIT_TINTS.
+--- Colours a tintable metaped category from a palette.  tint0/tint1/tint2 are the
+--- green/red/blue channels of the albedo (0-254, 255 disables the channel).
+--- Lost in the rsg-appearance -> rsg-character v3 move while two call sites in
+--- client/clothes.lua kept calling it, so restoring an outfit that carried tint
+--- data raised "attempt to call a nil value".
+function NativeSetTextureOutfitTints(ped, category, palette, tint0, tint1, tint2)
+    return Citizen.InvokeNative(0x4EFC1F8FF1AD94DE, ped, category, palette, tint0, tint1, tint2)
 end
 
 function NativeUpdatePedVariation(ped)

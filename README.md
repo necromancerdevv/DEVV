@@ -1,3 +1,54 @@
+---
+
+## Fork changes
+
+This is a fork of [Rexshack-RedM/rsg-character](https://github.com/Rexshack-RedM/rsg-character), GPL-3.0.
+Everything below the line is upstream; this section lists what the fork changes.
+
+### Reworked clothing store
+
+The store was a flat list of paired sliders - one to step through models, one
+labelled "Color" to step through that model's variant hashes. It is now a single
+screen:
+
+* **Tab rail** down the side, one per `RSG.MenuElements` group, with a marker on
+  the tabs that currently have something worn.
+* **Category list** showing what is worn and what each slot costs.
+* **Item grid** - every model as a chip you click directly, paged at 120 with a
+  "go to #" box, instead of arrowing one step at a time.
+* **Variant row** for the `_tint_001`, `_tint_002`... hashes of the worn garment.
+* **Colour section** for tintable categories: preset swatches, the primary tint
+  channel, and secondary/tertiary/palette behind an "Advanced" toggle.
+* **Live total** against the player's cash in the bottom bar.
+
+Files: `html/css/wardrobe.css`, `html/js/wardrobe.js` (new), `html/index.html`,
+`client/ui.lua`, `client/clothes.lua`.
+
+### Clothing tints
+
+RDR2 colours tintable garments from a `metaped_tint_*` palette mixed with three
+channels - `tint0`/`tint1`/`tint2` are the green/red/blue channels of the albedo,
+0-254, with 255 disabling a channel. Upstream applies them only when restoring a
+saved outfit, never in the store, so there was no way to pick a colour.
+
+* `data/tints.lua` (new) holds the tintable-category allowlist and the preset
+  swatches. Both are meant to be edited per server - there is no runtime native
+  that reports whether a component carries the `useTintPalette` flag, so the
+  allowlist is curated rather than detected, and the preset hex values are what
+  the swatch is painted with, not what the engine resolves. The ped is the truth.
+* `ConvertCacheToHash` now carries `palette`/`tint0`/`tint1`/`tint2` into the
+  saved outfit, so a colour picked in the store survives a relog.
+
+### Fix: `NativeSetTextureOutfitTints` was missing
+
+`client/clothes.lua` calls `NativeSetTextureOutfitTints` in two places when it
+restores an outfit, but the wrapper was dropped from `client/functions.lua` in the
+rsg-appearance -> rsg-character v3 move. Restoring any outfit that carried tint
+data therefore raised *attempt to call a nil value*. Restored as a wrapper over
+`SET_TEXTURE_OUTFIT_TINTS` (`0x4EFC1F8FF1AD94DE`), the same definition
+rsg-appearance shipped.
+
+---
 # rsg-character
 
 Character selection, creation, clothing store and spawn system for **RSG-Core** (RedM).

@@ -36,6 +36,7 @@ files {
     'data/clothing.lua',
     'data/hairs_list.lua',
     'data/clothes_list.lua',
+    'data/tints.lua',
     'locales/*.json',
     'html/index.html',
     'html/css/*.css',
